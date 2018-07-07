@@ -16,7 +16,7 @@ import gym
 import tensorflow as tf
 from mpi4py import MPI
 import osim.env
-import prosthetics_env
+from baselines.ddpg import prosthetics_env
 
 def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     # Configure things.
