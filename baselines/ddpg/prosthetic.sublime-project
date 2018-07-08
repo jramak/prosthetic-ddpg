@@ -3,6 +3,9 @@
 	[
 		{
 			"path": "."
+		},
+		{
+			"path": "/Users/markpaine/projects/prosthetic1/baselines"
 		}
 	]
 }
