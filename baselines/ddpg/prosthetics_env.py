@@ -84,7 +84,7 @@ class Wrapper(osim.env.ProstheticsEnv):
         # so we can do the projection ourselves.
         typename = type(self.env).__name__
         if typename == "ProstheticsEnv":  # osim.env.osim.ProstheticsEnv
-            observation, reward, done, info = self.env.step(action, project=False)
+            observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
         elif "Monitor":  # baselines.bench.monitor.Monitor
             observation, reward, done, info = self.env.step(action)
         else:
