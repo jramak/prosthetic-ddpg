@@ -35,6 +35,9 @@ src
 
 MUJOCO_LOG.TXT
 
+err.log
+out.log
 baselines/ddpg/prosthetic.sublime-workspace
 baselines/ddpg/err.log
 baselines/ddpg/out.log
+*__pycache__*
