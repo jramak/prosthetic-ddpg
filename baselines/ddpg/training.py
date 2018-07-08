@@ -159,7 +159,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             # Evaluation statistics.
             if eval_env is not None:
                 #combined_stats['eval/return'] = eval_episode_rewards
-                combined_stats['eval/return'] = np.array(eval_episode_rewards)
+                combined_stats['eval/return'] = np.mean(eval_episode_rewards)
                 combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
                 #combined_stats['eval/Q'] = eval_qs
                 combined_stats['eval/Q'] = np.mean(eval_qs)
