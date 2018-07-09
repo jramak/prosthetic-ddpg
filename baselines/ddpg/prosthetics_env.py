@@ -178,7 +178,7 @@ class Wrapper(osim.env.ProstheticsEnv):
         shaped_reward = reward + torso_r + legs_r + knees_r
 
         if done:
-            print("train reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
+            print("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
                 reward, shaped_reward, torso_r, torso, legs_r, legs, knees_r, knees_flexion))
 
         return shaped_reward
