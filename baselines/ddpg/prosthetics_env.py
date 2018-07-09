@@ -1,16 +1,18 @@
 import numpy as np
 import gym
+from pdb import set_trace
 
 import osim.env
 
 prosthetics_env_observation_len = None
 
 class Wrapper(osim.env.ProstheticsEnv):
-    def __init__(self, osim_env):
+    def __init__(self, osim_env, frameskip):
         global prosthetics_env_observation_len
 
         self.__dict__.update(osim_env.__dict__)
         self.env = osim_env
+        self.frameskip = frameskip
 
         o_low = self.env.observation_space.low
         o_high = self.env.observation_space.high
@@ -85,11 +87,22 @@ class Wrapper(osim.env.ProstheticsEnv):
         # so we can do the projection ourselves.
         typename = type(self.env).__name__
         if typename == "ProstheticsEnv":  # osim.env.osim.ProstheticsEnv
-            observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+            reward = 0.
+            for _ in range(self.frameskip):
+                observation, tmp_reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+                reward += tmp_reward
+                if done:
+                    break
+
             self.embellish_features(observation)
             reward = self.shaped_reward(observation, reward, done)
         elif "Monitor":  # baselines.bench.monitor.Monitor
-            observation, reward, done, info = self.env.step(action)
+            reward = 0.
+            for _ in range(self.frameskip):
+                observation, tmp_reward, done, info = self.env.step(action)
+                reward += tmp_reward
+                if done:
+                    break
         else:
             raise RuntimeError("WTF", typename)
 
@@ -132,11 +145,22 @@ class EvaluationWrapper(Wrapper):
         # so we can do the projection ourselves.
         typename = type(self.env).__name__
         if typename == "ProstheticsEnv":  # osim.env.osim.ProstheticsEnv
-            observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+            reward = 0.
+            for _ in range(self.frameskip):
+                observation, tmp_reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+                reward += tmp_reward
+                if done:
+                    break
             self.embellish_features(observation)
             if done:
                 print(" eval: reward:{:>6.1f}".format(reward))
         elif "Monitor":  # baselines.bench.monitor.Monitor
+            reward = 0.
+            for _ in range(self.frameskip):
+                observation, tmp_reward, done, info = self.env.step(action)
+                reward += tmp_reward
+                if done:
+                    break
             observation, reward, done, info = self.env.step(action)
         else:
             raise RuntimeError("WTF", typename)

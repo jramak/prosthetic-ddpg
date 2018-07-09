@@ -17,6 +17,7 @@ import tensorflow as tf
 from mpi4py import MPI
 import osim.env
 from baselines.ddpg import prosthetics_env
+from pdb import set_trace
 import gc
 gc.enable()
 
@@ -27,12 +28,12 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         logger.set_level(logger.DISABLED)
 
     # Create the opensim env.
-    env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']))
+    env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']), frameskip=kwargs['frameskip'])
     env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
 
     if evaluation and rank==0:
-        env = bench.Monitor(prosthetics_env.Wrapper(env), None)  # Stops the logging from the training env
-        eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']))
+        env = bench.Monitor(prosthetics_env.Wrapper(env, frameskip=kwargs['frameskip']), None)  # Stops the logging from the training env
+        eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']), frameskip=kwargs['frameskip'])
         eval_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), 'gym_eval'))
     else:
@@ -43,6 +44,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['model']
     del kwargs['prosthetic']
     del kwargs['difficulty']
+    del kwargs['frameskip']
 
     # Parse noise_type
     action_noise = None
@@ -114,6 +116,7 @@ def parse_args():
     parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
     parser.add_argument('--num-timesteps', type=int, default=None)
+    parser.add_argument('--frameskip', type=int, default=1)
     boolean_flag(parser, 'evaluation', default=False)
     parser.add_argument('--difficulty', type=int, choices=[0,1,2], default=2)
     parser.add_argument('--model', type=str, choices=['2D', '3D'], default='3D')
