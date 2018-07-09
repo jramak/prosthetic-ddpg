@@ -28,16 +28,16 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         logger.set_level(logger.DISABLED)
 
     # Create the opensim env.
-    env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']), frameskip=kwargs['frameskip'])
-    env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
+    train_env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']), frameskip=kwargs['frameskip'])
+    train_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
 
     if evaluation and rank==0:
-        env = bench.Monitor(prosthetics_env.Wrapper(env, frameskip=kwargs['frameskip']), None)  # Stops the logging from the training env
-        eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']), frameskip=kwargs['frameskip'])
+        train_env = bench.Monitor(train_env, None)
+        eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']), frameskip=kwargs['eval_frameskip'])
         eval_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), 'gym_eval'))
     else:
-        env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
+        train_env = bench.Monitor(train_env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
         eval_env = None
 
     # training.train() doesn't like the extra keyword args added for controlling the prosthetics env, so remove them.
@@ -45,11 +45,12 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['prosthetic']
     del kwargs['difficulty']
     del kwargs['frameskip']
+    del kwargs['eval_frameskip']
 
     # Parse noise_type
     action_noise = None
     param_noise = None
-    nb_actions = env.action_space.shape[-1]
+    nb_actions = train_env.action_space.shape[-1]
     for current_noise_type in noise_type.split(','):
         current_noise_type = current_noise_type.strip()
         if current_noise_type == 'none':
@@ -67,7 +68,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
             raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))
 
     # Configure components.
-    memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
+    memory = Memory(limit=int(1e6), action_shape=train_env.action_space.shape, observation_shape=train_env.observation_space.shape)
     critic = Critic(layer_norm=layer_norm)
     actor = Actor(nb_actions, layer_norm=layer_norm)
 
@@ -76,16 +77,16 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     logger.info('rank {}: seed={}, logdir={}'.format(rank, seed, logger.get_dir()))
     tf.reset_default_graph()
     set_global_seeds(seed)
-    env.seed(seed)
+    train_env.seed(seed)
     if eval_env is not None:
         eval_env.seed(seed)
 
     # Disable logging for rank != 0 to avoid noise.
     if rank == 0:
         start_time = time.time()
-    training.train(env=env, eval_env=eval_env, param_noise=param_noise,
+    training.train(env=train_env, eval_env=eval_env, param_noise=param_noise,
         action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
-    env.close()
+    train_env.close()
     if eval_env is not None:
         eval_env.close()
     if rank == 0:
@@ -116,11 +117,12 @@ def parse_args():
     parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
     parser.add_argument('--num-timesteps', type=int, default=None)
-    parser.add_argument('--frameskip', type=int, default=1)
     boolean_flag(parser, 'evaluation', default=False)
     parser.add_argument('--difficulty', type=int, choices=[0,1,2], default=2)
     parser.add_argument('--model', type=str, choices=['2D', '3D'], default='3D')
     boolean_flag(parser, 'prosthetic', default=True)
+    parser.add_argument('--frameskip', type=int, default=1)
+    parser.add_argument('--eval-frameskip', type=int, default=1)
     args = parser.parse_args()
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
     # they agree with the other parameters
