@@ -17,6 +17,8 @@ import tensorflow as tf
 from mpi4py import MPI
 import osim.env
 from baselines.ddpg import prosthetics_env
+import gc
+gc.enable()
 
 def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     # Configure things.
@@ -27,14 +29,14 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     # Create the opensim env.
     env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']))
     env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
-    env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
 
     if evaluation and rank==0:
-        eval_env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']))
+        env = bench.Monitor(prosthetics_env.Wrapper(env), None)  # Stops the logging from the training env
+        eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']))
         eval_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), 'gym_eval'))
-        env = bench.Monitor(prosthetics_env.EvaluationWrapper(env), None)
     else:
+        env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
         eval_env = None
 
     # training.train() doesn't like the extra keyword args added for controlling the prosthetics env, so remove them.

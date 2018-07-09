@@ -64,6 +64,7 @@ class Wrapper(osim.env.ProstheticsEnv):
 
     def reset(self, project = True):
         observation = self.env.reset(project=False)
+        self.embellish_features(observation)
         if project:
             projection = []
             self._project(observation, projection)
@@ -85,6 +86,8 @@ class Wrapper(osim.env.ProstheticsEnv):
         typename = type(self.env).__name__
         if typename == "ProstheticsEnv":  # osim.env.osim.ProstheticsEnv
             observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+            self.embellish_features(observation)
+            reward = self.shaped_reward(observation, reward, done)
         elif "Monitor":  # baselines.bench.monitor.Monitor
             observation, reward, done, info = self.env.step(action)
         else:
@@ -95,6 +98,12 @@ class Wrapper(osim.env.ProstheticsEnv):
             self._project(observation, projection)
             observation = projection
         return observation, reward, done, info
+
+    def shaped_reward(self, observation_dict, reward, done):
+        return reward
+
+    def embellish_features(self, observation_dict):
+        pass
 
     def _openai_to_opensim_action(self, action):
         return action + 0.5
@@ -107,7 +116,33 @@ class Wrapper(osim.env.ProstheticsEnv):
         else:
             accumulator.append(obj)
 
-# For evaluation mode in main.py the env gets rewrapped by bench.Monitor(), but
-# this exposes a bug in openai.
-# See https://github.com/openai/gym/issues/1037
-EvaluationWrapper = Wrapper
+
+class EvaluationWrapper(Wrapper):
+    def step(self, action, project=True):
+        # Okay, here's a hack, but it works. There are quite a few envs.
+        # - osim.env.ProstheticsEnv
+        # - this Wrapper
+        # - the aliased EvaluationWrapper defined at the bottom of this file
+        # - the envs returned by bench.Monitor()
+        # The envs returned by bench.Monitor() don't support the "project"
+        # keyword arg to step().
+        # You might think that we should use the value of project that's passed
+        # into this method when we call ProstheticsEnv.step() but that's not the
+        # case. We always want to get the dictionary back from the ProstheticsEnv
+        # so we can do the projection ourselves.
+        typename = type(self.env).__name__
+        if typename == "ProstheticsEnv":  # osim.env.osim.ProstheticsEnv
+            observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+            self.embellish_features(observation)
+            if done:
+                print(" eval: reward:{:>6.1f}".format(reward))
+        elif "Monitor":  # baselines.bench.monitor.Monitor
+            observation, reward, done, info = self.env.step(action)
+        else:
+            raise RuntimeError("WTF", typename)
+
+        if project:
+            projection = []
+            self._project(observation, projection)
+            observation = projection
+        return observation, reward, done, info
