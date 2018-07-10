@@ -115,8 +115,12 @@ class Wrapper(osim.env.ProstheticsEnv):
     def torso_lean_reward(self, observation_dict):
         lean = observation_dict["z_torso_lean"]
         reward = 0
-        if lean < 0:
+        if lean < 0 and lean >= -0.1:
             reward = -2
+        elif lean < -0.1 and lean >= -0.2:
+            reward = -3
+        elif lean < -0.3:
+            reward = -20
         return reward
 
     # The femur_l and femur_r entries contain 3 numbers, the x, y, and z coordinates.
@@ -131,15 +135,24 @@ class Wrapper(osim.env.ProstheticsEnv):
         body_pos = observation_dict["body_pos"]
         pelvis = body_pos["pelvis"]
         femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
-        return (pelvis[0] - ((femur_l[0] + femur_r[0])/2)) / (pelvis[1] - ((femur_l[1] + femur_r[1])/2))
+        # return (pelvis[0] - ((femur_l[0] + femur_r[0])/2)) / (pelvis[1] - ((femur_l[1] + femur_r[1])/2))
+        return [
+            (pelvis[0] - femur_l[0]) / (pelvis[1] - femur_l[1]),
+            (pelvis[0] - femur_r[0]) / (pelvis[1] - femur_r[1])
+        ]
 
     # Only generate negative rewards for undesired states so that "successful"
     # observations reflect actual rewards.
     def legs_lean_reward(self, observation_dict):
-        lean = observation_dict["z_legs_lean"]
+        femur_l = observation_dict["z_femur_l_lean"]
+        femur_r = observation_dict["z_femur_r_lean"]
         reward = 0
-        if lean < 0:
+        if femur_l < 0 and femur_l >= -0.1 and femur_r < 0 and femur_r >= -0.1:
             reward = -2
+        elif femur_l < -0.1 and femur_l >= -0.2 and femur_r < -0.1 and femur_r >= -0.2:
+            reward = -3
+        elif femur_l < -0.3 and femur_r < -0.3:
+            reward = -20
         return reward
 
     # The knee_l and knee_r entries contain just one number, the joint flexion.
@@ -163,7 +176,9 @@ class Wrapper(osim.env.ProstheticsEnv):
     # Modifies the observation_dict in place.
     def embellish_features_2(self, observation_dict):
         observation_dict["z_torso_lean"] = self.torso_lean(observation_dict)
-        observation_dict["z_legs_lean"] = self.legs_lean(observation_dict)
+        legs_lean = self.legs_lean(observation_dict)
+        observation_dict["z_femur_l_lean"] = legs_lean[0]
+        observation_dict["z_femur_r_lean"] = legs_lean[1]
         observation_dict["z_knees_flexion"] = self.knees_flexion(observation_dict)
 
     def shaped_reward_2(self, observation_dict, reward, done):
@@ -172,14 +187,15 @@ class Wrapper(osim.env.ProstheticsEnv):
         knees_r = self.knees_flexion_reward(observation_dict)
 
         torso = observation_dict["z_torso_lean"]
-        legs = observation_dict["z_legs_lean"]
+        z_femur_l_lean = observation_dict["z_femur_l_lean"]
+        z_femur_r_lean = observation_dict["z_femur_r_lean"]
         knees_flexion = observation_dict["z_knees_flexion"]
 
         shaped_reward = reward + torso_r + legs_r + knees_r
 
         if done:
-            print("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
-                reward, shaped_reward, torso_r, torso, legs_r, legs, knees_r, knees_flexion))
+            print("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}, {:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
+                reward, shaped_reward, torso_r, torso, legs_r, z_femur_l_lean, z_femur_r_lean, knees_r, knees_flexion))
 
         return shaped_reward
 
