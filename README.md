@@ -9,13 +9,17 @@
 
 ## Saving and Restoring Models
 
-To save models after each epoch
+Models are always saved after each epoch. If left unspecified, the base filename is generated randomly. Each saved model file is appended with epoch number. To specify a base name for the saved files, use the --saved-model-basename argument:
 
-    $ python -m baselines.ddpg.main --nb-epochs 50 --model 2D --difficulty 0 --evaluation --frameskip 1 --eval-frameskip=1 --saved-model-name skip1-shapeNone
+    $ python -m baselines.ddpg.main --nb-epochs 50 --model 2D --difficulty 0 --evaluation --frameskip 1 --eval-frameskip=1 --saved-model-basename skip1-shapeNone
 
 To restore from a saved model of a particular epoch (note the "-1" suffix to designate the model that was saved after epoch 1):
 
-    $ python -m baselines.ddpg.main --nb-epochs 50 --model 2D --difficulty 0 --evaluation --frameskip 1 --eval-frameskip=1 --saved-model-name skip1-shapeNone-1 --restore-saved-model
+    $ python -m baselines.ddpg.main --nb-epochs 50 --model 2D --difficulty 0 --evaluation --frameskip 1 --eval-frameskip=1 --restore-model-name skip1-shapeNone-1
+
+It's even possible to restore from an existing model and save new models to a different file basename:
+
+	$ python -m baselines.ddpg.main --nb-epochs 50 --model 2D --difficulty 0 --evaluation --frameskip 1 --eval-frameskip=1 --restore-model-name skip1-shapeNone-1 --save-model-basename my-new-model-from-skip1-shapeNone-1
 
 ## Using feature embellishment and reward shaping
 

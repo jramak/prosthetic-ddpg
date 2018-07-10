@@ -131,8 +131,8 @@ def parse_args():
     boolean_flag(parser, 'prosthetic', default=True)
     parser.add_argument('--frameskip', type=int, default=1)
     parser.add_argument('--eval-frameskip', type=int, default=1)
-    parser.add_argument('--saved-model-name', type=str, default='model')  # all models are saved to saved-models/<saved_model_name>
-    boolean_flag(parser, 'restore-saved-model', default=False)
+    parser.add_argument('--saved-model-basename', type=str, default=None)  # all models are saved to saved-models/<saved_model_basename>-<epoch>
+    parser.add_argument('--restore-model-name', type=str, default=None)  # all models are saved to saved-models/<restore_model_name>
     boolean_flag(parser, 'reward-shaping', default=False)
     boolean_flag(parser, 'feature-embellishment', default=False)
     args = parser.parse_args()

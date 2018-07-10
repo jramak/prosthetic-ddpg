@@ -1,7 +1,11 @@
 import os
+import sys
 import time
 from collections import deque
 import pickle
+import random
+import string
+from tensorflow.python.framework.errors import InvalidArgumentError
 
 from baselines.ddpg.ddpg import DDPG
 import baselines.common.tf_util as U
@@ -15,7 +19,7 @@ from mpi4py import MPI
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
-    saved_model_name, restore_saved_model,
+    saved_model_basename, restore_model_name,
     tau=0.01, eval_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
@@ -32,7 +36,10 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
     # Set up logging stuff only for a single worker.
     saved_model_dir = 'saved-models/'
-    model_path = saved_model_dir + saved_model_name
+    if saved_model_basename is None:
+        saved_model_basename = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    saved_model_path = saved_model_dir + saved_model_basename
+    restore_model_path = saved_model_dir + restore_model_name
     if rank == 0:
         saver = tf.train.Saver(max_to_keep=100)
     else:
@@ -43,13 +50,22 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
     with U.single_threaded_session() as sess:
-        if restore_saved_model:
-            logger.info("Restoring from model at", model_path)
-            #saver.restore(sess, tf.train.latest_checkpoint(model_path))
-            saver.restore(sess, model_path)
-        else:
-            logger.info("Creating new model")
-            sess.run(tf.global_variables_initializer()) # this should happen here and not in the agent right?
+        try:
+            if restore_model_name:
+                logger.info("Restoring from model at", restore_model_path)
+                #saver.restore(sess, tf.train.latest_checkpoint(model_path))
+                saver.restore(sess, restore_model_path)
+            else:
+                logger.info("Creating new model")
+                sess.run(tf.global_variables_initializer()) # this should happen here and not in the agent right?
+        except InvalidArgumentError as exc:
+            if "Assign requires shapes of both tensors to match." in str(exc):
+                print("Unable to restore model from {:s}.".format(restore_model_path))
+                print("Chances are you're trying to restore a model with reward embellishment into an environment without reward embellishment (or vice versa). Unfortunately this isn't supported (yet).")
+                print(exc.message)
+                sys.exit()
+            else:
+                raise exc
 
         # Prepare everything.
         agent.initialize(sess)
@@ -194,8 +210,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             logger.info('')
             logdir = logger.get_dir()
 
-            logger.info('Saving model to', saved_model_dir + saved_model_name)
-            saver.save(sess, model_path, global_step=epoch, write_meta_graph=False)
+            logger.info('Saving model to', saved_model_dir + saved_model_basename)
+            saver.save(sess, saved_model_path, global_step=epoch, write_meta_graph=False)
 
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):
