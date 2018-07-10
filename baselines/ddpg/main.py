@@ -28,12 +28,18 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         logger.set_level(logger.DISABLED)
 
     # Create the opensim env.
-    train_env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']), frameskip=kwargs['frameskip'])
+    train_env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']),
+        frameskip=kwargs['frameskip'],
+        reward_shaping=kwargs['reward_shaping'],
+        feature_embellishment=kwargs['feature_embellishment'])
     train_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
 
     if evaluation and rank==0:
         train_env = bench.Monitor(train_env, None)
-        eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']), frameskip=kwargs['eval_frameskip'])
+        eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']),
+            frameskip=kwargs['eval_frameskip'],
+            reward_shaping=kwargs['reward_shaping'],
+            feature_embellishment=kwargs['feature_embellishment'])
         eval_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), 'gym_eval'))
     else:
@@ -46,6 +52,8 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['difficulty']
     del kwargs['frameskip']
     del kwargs['eval_frameskip']
+    del kwargs['reward_shaping']
+    del kwargs['feature_embellishment']
 
     # Parse noise_type
     action_noise = None
@@ -125,6 +133,8 @@ def parse_args():
     parser.add_argument('--eval-frameskip', type=int, default=1)
     parser.add_argument('--saved-model-name', type=str, default='model')  # all models are saved to saved-models/<saved_model_name>
     boolean_flag(parser, 'restore-saved-model', default=False)
+    boolean_flag(parser, 'reward-shaping', default=False)
+    boolean_flag(parser, 'feature-embellishment', default=False)
     args = parser.parse_args()
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
     # they agree with the other parameters

@@ -7,12 +7,14 @@ import osim.env
 prosthetics_env_observation_len = None
 
 class Wrapper(osim.env.ProstheticsEnv):
-    def __init__(self, osim_env, frameskip):
+    def __init__(self, osim_env, frameskip, reward_shaping, feature_embellishment):
         global prosthetics_env_observation_len
         assert(type(osim_env).__name__) == "ProstheticsEnv"
 
         self.__dict__.update(osim_env.__dict__)
         self.env = osim_env
+        self.reward_shaping = reward_shaping
+        self.feature_embellishment = feature_embellishment
         self.frameskip = frameskip
         self.step_num = 0
 
@@ -47,6 +49,7 @@ class Wrapper(osim.env.ProstheticsEnv):
             high=o_high[0],
             shape=(prosthetics_env_observation_len,),
             dtype=np.float32)
+        print("observation_space shape is ({:d},)".format(prosthetics_env_observation_len))
 
         a_low = self.env.action_space.low
         a_high = self.env.action_space.high
@@ -60,7 +63,8 @@ class Wrapper(osim.env.ProstheticsEnv):
 
     def reset(self, project = True):
         observation = self.env.reset(project=False)  # never project=True when calling the ProstheticsEnv
-        self.embellish_features(observation)
+        if self.reward_shaping or self.feature_embellishment:
+            self.embellish_features(observation)
         if project:
             projection = []
             self._project(observation, projection)
@@ -70,8 +74,10 @@ class Wrapper(osim.env.ProstheticsEnv):
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
             observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
-            self.embellish_features(observation)
-            reward = self.shaped_reward(observation, reward, done)
+            if self.reward_shaping or self.feature_embellishment:
+                self.embellish_features(observation)
+            if self.reward_shaping:
+                reward = self.shaped_reward(observation, reward, done)
             if project:
                 projection = []
                 self._project(observation, projection)
@@ -81,12 +87,6 @@ class Wrapper(osim.env.ProstheticsEnv):
             observation, reward, done, info = self.prev_step
         self.step_num += 1
         return observation, reward, done, info
-
-    def shaped_reward(self, observation_dict, reward, done):
-        return self.shaped_reward_2(observation_dict, reward, done)
-
-    def embellish_features(self, observation_dict):
-        self.embellish_features_2(observation_dict)
 
     def _openai_to_opensim_action(self, action):
         return action + 0.5
@@ -135,7 +135,6 @@ class Wrapper(osim.env.ProstheticsEnv):
         body_pos = observation_dict["body_pos"]
         pelvis = body_pos["pelvis"]
         femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
-        # return (pelvis[0] - ((femur_l[0] + femur_r[0])/2)) / (pelvis[1] - ((femur_l[1] + femur_r[1])/2))
         return [
             (pelvis[0] - femur_l[0]) / (pelvis[1] - femur_l[1]),
             (pelvis[0] - femur_r[0]) / (pelvis[1] - femur_r[1])
@@ -174,14 +173,14 @@ class Wrapper(osim.env.ProstheticsEnv):
         return reward
 
     # Modifies the observation_dict in place.
-    def embellish_features_2(self, observation_dict):
+    def embellish_features(self, observation_dict):
         observation_dict["z_torso_lean"] = self.torso_lean(observation_dict)
         legs_lean = self.legs_lean(observation_dict)
         observation_dict["z_femur_l_lean"] = legs_lean[0]
         observation_dict["z_femur_r_lean"] = legs_lean[1]
         observation_dict["z_knees_flexion"] = self.knees_flexion(observation_dict)
 
-    def shaped_reward_2(self, observation_dict, reward, done):
+    def shaped_reward(self, observation_dict, reward, done):
         torso_r = self.torso_lean_reward(observation_dict)
         legs_r = self.legs_lean_reward(observation_dict)
         knees_r = self.knees_flexion_reward(observation_dict)
@@ -203,7 +202,8 @@ class EvaluationWrapper(Wrapper):
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
             observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
-            self.embellish_features(observation)
+            if self.reward_shaping or self.feature_embellishment:
+                self.embellish_features(observation)
             if done:
                 print(" eval: reward:{:>6.1f}".format(reward))
             if project:
