@@ -135,6 +135,10 @@ class Wrapper(osim.env.ProstheticsEnv):
         body_pos = observation_dict["body_pos"]
         pelvis = body_pos["pelvis"]
         femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
+<<<<<<< HEAD
+=======
+        # return (pelvis[0] - ((femur_l[0] + femur_r[0])/2)) / (pelvis[1] - ((femur_l[1] + femur_r[1])/2))
+>>>>>>> Refactor the femur lean.
         return [
             (pelvis[0] - femur_l[0]) / (pelvis[1] - femur_l[1]),
             (pelvis[0] - femur_r[0]) / (pelvis[1] - femur_r[1])
