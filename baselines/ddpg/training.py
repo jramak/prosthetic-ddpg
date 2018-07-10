@@ -39,7 +39,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     if saved_model_basename is None:
         saved_model_basename = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
     saved_model_path = saved_model_dir + saved_model_basename
-    restore_model_path = saved_model_dir + restore_model_name
+    if restore_model_name:
+        restore_model_path = saved_model_dir + restore_model_name
     if rank == 0:
         saver = tf.train.Saver(max_to_keep=100)
     else:
