@@ -123,6 +123,8 @@ def parse_args():
     boolean_flag(parser, 'prosthetic', default=True)
     parser.add_argument('--frameskip', type=int, default=1)
     parser.add_argument('--eval-frameskip', type=int, default=1)
+    parser.add_argument('--saved-model-name', type=str, default='model')  # all models are saved to saved-models/<saved_model_name>
+    boolean_flag(parser, 'restore-saved-model', default=False)
     args = parser.parse_args()
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
     # they agree with the other parameters
