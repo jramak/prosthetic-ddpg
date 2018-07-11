@@ -19,11 +19,22 @@ class Model(object):
         return [var for var in self.trainable_vars if 'LayerNorm' not in var.name]
 
 
+def apply_activation(x, activation):
+    if activation == 'selu':
+        x = tf.nn.selu(x)
+    elif activation == 'elu':
+        x = tf.nn.elu(x)
+    elif activation == 'relu':
+        x = tf.nn.relu(x)
+    return x
+
+
 class Actor(Model):
-    def __init__(self, nb_actions, name='actor', layer_norm=True):
+    def __init__(self, nb_actions, name='actor', layer_norm=True, activation='selu'):
         super(Actor, self).__init__(name=name)
         self.nb_actions = nb_actions
         self.layer_norm = layer_norm
+        self.activation = activation
 
     def __call__(self, obs, reuse=False):
         with tf.variable_scope(self.name) as scope:
@@ -34,22 +45,23 @@ class Actor(Model):
             x = tf.layers.dense(x, 64)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
-            
+            x = apply_activation(x, self.activation)
+
             x = tf.layers.dense(x, 64)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
-            
+            x = apply_activation(x, self.activation)
+
             x = tf.layers.dense(x, self.nb_actions, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
             x = tf.nn.tanh(x)
         return x
 
 
 class Critic(Model):
-    def __init__(self, name='critic', layer_norm=True):
+    def __init__(self, name='critic', layer_norm=True, activation='selu'):
         super(Critic, self).__init__(name=name)
         self.layer_norm = layer_norm
+        self.activation = activation
 
     def __call__(self, obs, action, reuse=False):
         with tf.variable_scope(self.name) as scope:
@@ -60,13 +72,13 @@ class Critic(Model):
             x = tf.layers.dense(x, 64)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
+            x = apply_activation(x, self.activation)
 
             x = tf.concat([x, action], axis=-1)
             x = tf.layers.dense(x, 64)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
+            x = apply_activation(x, self.activation)
 
             x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
         return x

@@ -80,8 +80,10 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
 
     # Configure components.
     memory = Memory(limit=int(1e6), action_shape=train_env.action_space.shape, observation_shape=train_env.observation_space.shape)
-    critic = Critic(layer_norm=layer_norm)
-    actor = Actor(nb_actions, layer_norm=layer_norm)
+    critic = Critic(layer_norm=layer_norm, activation=kwargs['activation'])
+    actor = Actor(nb_actions, layer_norm=layer_norm, activation=kwargs['activation'])
+
+    del kwargs['activation']
 
     # Seed everything to make things reproducible.
     seed = seed + 1000000 * rank
@@ -131,6 +133,7 @@ def parse_args():
     boolean_flag(parser, 'evaluation', default=False)
     parser.add_argument('--difficulty', type=int, choices=[0,1,2], default=2)
     parser.add_argument('--model', type=str, choices=['2D', '3D'], default='3D')
+    parser.add_argument('--activation', type=str, choices=['relu', 'selu', 'elu'], default='selu')
     boolean_flag(parser, 'prosthetic', default=True)
     parser.add_argument('--frameskip', type=int, default=1)
     parser.add_argument('--eval-frameskip', type=int, default=1)
