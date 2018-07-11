@@ -7,7 +7,7 @@ import osim.env
 prosthetics_env_observation_len = None
 
 class Wrapper(osim.env.ProstheticsEnv):
-    def __init__(self, osim_env, frameskip, reward_shaping, feature_embellishment):
+    def __init__(self, osim_env, frameskip, reward_shaping, feature_embellishment, relative_x_pos):
         global prosthetics_env_observation_len
         assert(type(osim_env).__name__) == "ProstheticsEnv"
 
@@ -15,6 +15,7 @@ class Wrapper(osim.env.ProstheticsEnv):
         self.env = osim_env
         self.reward_shaping = reward_shaping
         self.feature_embellishment = feature_embellishment
+        self.relative_x_pos = relative_x_pos
         self.frameskip = frameskip
         self.step_num = 0
 
@@ -65,6 +66,8 @@ class Wrapper(osim.env.ProstheticsEnv):
         observation = self.env.reset(project=False)  # never project=True when calling the ProstheticsEnv
         if self.reward_shaping or self.feature_embellishment:
             self.embellish_features(observation)
+        if self.relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
+            self.adjust_relative_x_pos(observation)
         if project:
             projection = []
             self._project(observation, projection)
@@ -76,6 +79,8 @@ class Wrapper(osim.env.ProstheticsEnv):
             observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
             if self.reward_shaping or self.feature_embellishment:
                 self.embellish_features(observation)
+            if self.relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
+                self.adjust_relative_x_pos(observation)
             if self.reward_shaping:
                 reward = self.shaped_reward(observation, reward, done)
             if project:
@@ -198,12 +203,23 @@ class Wrapper(osim.env.ProstheticsEnv):
 
         return shaped_reward
 
+    # Modifies the observation_dict in place.
+    def adjust_relative_x_pos(self, observation_dict):
+        mass_center_pos = observation_dict["misc"]["mass_center_pos"]
+        body_pos = observation_dict["body_pos"]
+        for body_part in ["calcn_l", "talus_l", "tibia_l", "toes_l", "femur_l", "femur_r", "head", "pelvis", "torso", "pros_foot_r", "pros_tibia_r"]:
+            body_pos[body_part][0] -= mass_center_pos[0]
+        observation_dict["joint_pos"]["ground_pelvis"][0] -= mass_center_pos[0]
+
+
 class EvaluationWrapper(Wrapper):
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
             observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
             if self.reward_shaping or self.feature_embellishment:
                 self.embellish_features(observation)
+            if self.relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
+                self.adjust_relative_x_pos(observation)
             if done:
                 print(" eval: reward:{:>6.1f}".format(reward))
             if project:

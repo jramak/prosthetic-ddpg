@@ -31,7 +31,8 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     train_env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']),
         frameskip=kwargs['frameskip'],
         reward_shaping=kwargs['reward_shaping'],
-        feature_embellishment=kwargs['feature_embellishment'])
+        feature_embellishment=kwargs['feature_embellishment'],
+        relative_x_pos=kwargs['relative_x_pos'])
     train_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
 
     if evaluation and rank==0:
@@ -39,7 +40,8 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']),
             frameskip=kwargs['eval_frameskip'],
             reward_shaping=kwargs['reward_shaping'],
-            feature_embellishment=kwargs['feature_embellishment'])
+            feature_embellishment=kwargs['feature_embellishment'],
+            relative_x_pos=kwargs['relative_x_pos'])
         eval_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), 'gym_eval'))
     else:
@@ -54,6 +56,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['eval_frameskip']
     del kwargs['reward_shaping']
     del kwargs['feature_embellishment']
+    del kwargs['relative_x_pos']
 
     # Parse noise_type
     action_noise = None
@@ -135,6 +138,7 @@ def parse_args():
     parser.add_argument('--restore-model-name', type=str, default=None)  # all models are saved to saved-models/<restore_model_name>
     boolean_flag(parser, 'reward-shaping', default=False)
     boolean_flag(parser, 'feature-embellishment', default=False)
+    boolean_flag(parser, 'relative-x-pos', default=True)
     args = parser.parse_args()
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
     # they agree with the other parameters
