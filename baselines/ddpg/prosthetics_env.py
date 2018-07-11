@@ -1,10 +1,11 @@
 import numpy as np
 import gym
 from pdb import set_trace
-
+from gym.utils import seeding
 import osim.env
 
 prosthetics_env_observation_len = None
+
 
 class Wrapper(osim.env.ProstheticsEnv):
     def __init__(self, osim_env, frameskip, reward_shaping, feature_embellishment, relative_x_pos):
@@ -62,7 +63,7 @@ class Wrapper(osim.env.ProstheticsEnv):
     def change_model(self, **kwargs):
         self.env.change_model(**kwargs)
 
-    def reset(self, project = True):
+    def reset(self, project=True):
         observation = self.env.reset(project=False)  # never project=True when calling the ProstheticsEnv
         if self.reward_shaping or self.feature_embellishment:
             self.embellish_features(observation)
@@ -73,6 +74,10 @@ class Wrapper(osim.env.ProstheticsEnv):
             self._project(observation, projection)
             observation = projection
         return observation
+
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
 
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
@@ -96,7 +101,7 @@ class Wrapper(osim.env.ProstheticsEnv):
     def _openai_to_opensim_action(self, action):
         return action + 0.5
 
-    def _project(self, obj, accumulator = []):
+    def _project(self, obj, accumulator=[]):
         if type(obj).__name__ == "list":
             [self._project(item, accumulator) for item in obj]
         elif type(obj).__name__ == "dict":
