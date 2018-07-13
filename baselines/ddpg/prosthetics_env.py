@@ -81,22 +81,33 @@ class Wrapper(osim.env.ProstheticsEnv):
 
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
-            observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
-            if self.reward_shaping or self.feature_embellishment:
-                self.embellish_features(observation)
-            if self.relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
-                self.adjust_relative_x_pos(observation)
+            observation_dict, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+            observation = self.transform_observation(observation_dict, project=True)
             if self.reward_shaping:
-                reward = self.shaped_reward(observation, reward, done)
-            if project:
-                projection = []
-                self._project(observation, projection)
-                observation = projection
+                reward = self.shaped_reward(observation_dict, reward, done)
             self.prev_step = observation, reward, done, info
         else:
             observation, reward, done, info = self.prev_step
         self.step_num += 1
         return observation, reward, done, info
+
+    # Transform the observation dictionary returned by the opensim environment
+    # step by applying various transformations such as embellishing the feature set
+    # with additional derived features, and changing absolute coordinate positions
+    # to relative ones.
+    # Finally, if project=True, transform the dictionary into a vector.
+    def transform_observation(self, observation_dict, project):
+        if self.reward_shaping or self.feature_embellishment:
+            self.embellish_features(observation_dict)
+        if self.relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
+            self.adjust_relative_x_pos(observation_dict)
+        if project:
+            projection = []
+            self._project(observation_dict, projection)
+            observation = projection
+        else:
+            observation = observation_dict
+        return observation
 
     def _openai_to_opensim_action(self, action):
         return action + 0.5
@@ -190,6 +201,7 @@ class Wrapper(osim.env.ProstheticsEnv):
         observation_dict["z_femur_r_lean"] = legs_lean[1]
         observation_dict["z_knees_flexion"] = self.knees_flexion(observation_dict)
 
+    # Must not have any side effects (do *not* modify observation_dict in place).
     def shaped_reward(self, observation_dict, reward, done):
         torso_r = self.torso_lean_reward(observation_dict)
         legs_r = self.legs_lean_reward(observation_dict)

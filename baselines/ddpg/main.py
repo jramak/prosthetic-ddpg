@@ -15,15 +15,19 @@ from baselines.ddpg.noise import *
 import gym
 import tensorflow as tf
 from mpi4py import MPI
-import osim.env
+import osim.env as osim_env
+import opensim as osim
+from osim.http.client import Client
 from baselines.ddpg import prosthetics_env
 from pdb import set_trace
 import gc
 gc.enable()
 
 def dispatch(seed, noise_type=None, layer_norm=None, evaluation=False, **kwargs):
+    kwargs['crowdai_client'] = None
+    kwargs['crowdai_token'] = None
     if kwargs['crowdai_submit']:
-        crowdai_submit()
+        crowdai_submit(seed, noise_type, layer_norm, evaluation, **kwargs)
     elif kwargs['eval_only']:
         evaluate(seed, noise_type, layer_norm, evaluation, **kwargs)
     else:
@@ -42,11 +46,15 @@ def evaluate(seed, noise_type, layer_norm, evaluation, **kwargs):
     kwargs['nb_rollout_steps'] = 0
     ignoring_int('nb_train_steps', 0, **kwargs)
     kwargs['nb_train_steps'] = 0
-
     run(seed, noise_type, layer_norm, evaluation, **kwargs)
 
-def crowdai_submit():
-    logger.info('TODO: submit to crowdai')
+def crowdai_submit(seed, noise_type, layer_norm, evaluation, **kwargs):
+    remote_base = "http://grader.crowdai.org:1729"
+    crowdai_token = "9c48765358e511504cf7731614afac30"
+    crowdai_client = Client(remote_base)
+    kwargs['crowdai_token'] = crowdai_token
+    kwargs['crowdai_client'] = crowdai_client
+    evaluate(seed, noise_type, layer_norm, evaluation, **kwargs)
 
 def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     # Configure things.
@@ -55,7 +63,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         logger.set_level(logger.DISABLED)
 
     # Create the opensim env.
-    train_env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']),
+    train_env = prosthetics_env.Wrapper(osim_env.ProstheticsEnv(visualize=kwargs['render']),
         frameskip=kwargs['frameskip'],
         reward_shaping=kwargs['reward_shaping'],
         feature_embellishment=kwargs['feature_embellishment'],
@@ -64,7 +72,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
 
     if evaluation and rank==0:
         train_env = bench.Monitor(train_env, None)
-        eval_env = prosthetics_env.EvaluationWrapper(osim.env.ProstheticsEnv(visualize=kwargs['render']),
+        eval_env = prosthetics_env.EvaluationWrapper(osim_env.ProstheticsEnv(visualize=kwargs['render']),
             frameskip=kwargs['eval_frameskip'],
             reward_shaping=kwargs['reward_shaping'],
             feature_embellishment=kwargs['feature_embellishment'],
