@@ -23,7 +23,9 @@ gc.enable()
 
 def dispatch(seed, noise_type=None, layer_norm=None, evaluation=False, **kwargs):
     if kwargs['crowdai_submit']:
-        crowdai_submit()
+        # restore_model_name must be specified!
+        assert kwargs['restore_model_name']
+        crowdai_submit(kwargs['token'], kwargs['restore_model_name'])
     elif kwargs['eval_only']:
         evaluate(seed, noise_type, layer_norm, evaluation, **kwargs)
     else:
@@ -45,8 +47,20 @@ def evaluate(seed, noise_type, layer_norm, evaluation, **kwargs):
 
     run(seed, noise_type, layer_norm, evaluation, **kwargs)
 
-def crowdai_submit():
-    logger.info('TODO: submit to crowdai')
+def crowdai_submit(token, restore_model_name):
+    saved_model_dir = 'saved-models/'
+    if restore_model_name:
+        restore_model_path = saved_model_dir + restore_model_name
+    logger.info("Restoring from model at", restore_model_path)
+    saver = tf.train.Saver(max_to_keep=100)
+    saver.restore(sess, restore_model_path)
+    logger.info("STILL quite a bit left to submit!")
+    #agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape,
+    #    gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,
+    #    batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
+    #    actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
+    #    reward_scale=reward_scale)
+
 
 def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     # Configure things.
@@ -85,6 +99,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['feature_embellishment']
     del kwargs['relative_x_pos']
     del kwargs['crowdai_submit']
+    del kwargs['token']
     del kwargs['eval_only']
 
     # Parse noise_type
@@ -168,6 +183,8 @@ def parse_args():
     parser.add_argument('--eval-frameskip', type=int, default=1)
     parser.add_argument('--saved-model-basename', type=str, default=None)  # all models are saved to saved-models/<saved_model_basename>-<epoch>
     parser.add_argument('--restore-model-name', type=str, default=None)  # all models are saved to saved-models/<restore_model_name>
+    parser.add_argument('--token', dest='token', action='store',
+                        default='9c48765358e511504cf7731614afac30')
     boolean_flag(parser, 'reward-shaping', default=False)
     boolean_flag(parser, 'feature-embellishment', default=False)
     boolean_flag(parser, 'relative-x-pos', default=True)
