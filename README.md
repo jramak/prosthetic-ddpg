@@ -1,3 +1,9 @@
+## Installation
+
+Install Anaconda and set up your conda environment by running:
+
+    $ conda env create -f environment.yaml
+
 ## Using Tensorboard
 
     $ export OPENAI_LOG_FORMAT='stdout,log,csv,tensorboard'
