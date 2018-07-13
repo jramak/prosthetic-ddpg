@@ -1,6 +1,7 @@
 import argparse
 import time
 import os
+import sys
 import logging
 from baselines import logger, bench
 from baselines.common.misc_util import (
@@ -49,10 +50,12 @@ def evaluate(seed, noise_type, layer_norm, evaluation, **kwargs):
     run(seed, noise_type, layer_norm, evaluation, **kwargs)
 
 def crowdai_submit(seed, noise_type, layer_norm, evaluation, **kwargs):
+    if 'restore_model_name' not in kwargs:
+        logger.error('You must specify the --restore-model-name in order to submit')
+        sys.exit()
     remote_base = "http://grader.crowdai.org:1729"
-    crowdai_token = "9c48765358e511504cf7731614afac30"
+    crowdai_token = kwargs['crowdai_token']
     crowdai_client = Client(remote_base)
-    kwargs['crowdai_token'] = crowdai_token
     kwargs['crowdai_client'] = crowdai_client
     evaluate(seed, noise_type, layer_norm, evaluation, **kwargs)
 
@@ -93,6 +96,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['feature_embellishment']
     del kwargs['relative_x_pos']
     del kwargs['crowdai_submit']
+    del kwargs['token']
     del kwargs['eval_only']
 
     # Parse noise_type
@@ -180,6 +184,7 @@ def parse_args():
     boolean_flag(parser, 'feature-embellishment', default=False)
     boolean_flag(parser, 'relative-x-pos', default=True)
     boolean_flag(parser, 'crowdai-submit', default=False)  # for submission to crowdai nips prosthetic challenge, must be used with --restore-model-name
+    parser.add_argument('--crowdai-token', default='9c48765358e511504cf7731614afac30')
     boolean_flag(parser, 'eval-only', default=False)  # for running evaluation only, no training, must be used with --restore-model-name
     args = parser.parse_args()
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
