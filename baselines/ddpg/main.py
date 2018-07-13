@@ -91,7 +91,6 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['difficulty']
     del kwargs['frameskip']
     del kwargs['eval_frameskip']
-    del kwargs['reward_shaping']
     del kwargs['crowdai_submit']
     del kwargs['eval_only']
 

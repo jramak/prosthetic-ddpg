@@ -21,7 +21,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
     saved_model_basename, restore_model_name, crowdai_client, crowdai_token,
-    feature_embellishment, relative_x_pos,
+    reward_shaping, feature_embellishment, relative_x_pos,
     tau=0.01, eval_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
@@ -152,28 +152,29 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 #if crowdai_client is not None and crowdai_token is not None and eval_env is not None:
                 if crowdai_client is not None and crowdai_token is not None:
                     eval_obs_dict = crowdai_client.env_create(crowdai_token, env_id="ProstheticsEnv")
-                    eval_obs_dict, _ = prosthetics_env.transform_observation(
+                    eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
                         eval_obs_dict,
-                        reward_shaping=False,
+                        reward_shaping=reward_shaping,
                         feature_embellishment=feature_embellishment,
                         relative_x_pos=relative_x_pos)
                     while True:
-                        [eval_obs_dict, reward, done, info] = crowdai_client.env_step(agent.pi(eval_obs_dict, apply_noise=False, compute_Q=False), True)
-                        eval_obs_dict, _ = prosthetics_env.transform_observation(
+                        submit_action, _ = agent.pi(eval_obs_projection, apply_noise=False, compute_Q=False)
+                        [eval_obs_dict, reward, done, info] = crowdai_client.env_step(submit_action.tolist(), True)
+                        #[eval_obs_dict, reward, done, info] = crowdai_client.env_step(agent.pi(eval_obs_projection, apply_noise=False, compute_Q=False), True)
+                        eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
                             eval_obs_dict,
-                            reward_shaping=False,
+                            reward_shaping=reward_shaping,
                             feature_embellishment=feature_embellishment,
                             relative_x_pos=relative_x_pos)
-                        logger.debug("eval_obs_dict:", eval_obs_dict)
                         if done:
                             eval_obs_dict = crowdai_client.env_reset()
-                            eval_obs_dict, _ = prosthetics_env.transform_observation(
-                                eval_obs_dict,
-                                reward_shaping=False,
-                                feature_embellishment=feature_embellishment,
-                                relative_x_pos=relative_x_pos)
                             if not eval_obs_dict:
                                 break
+                            eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
+                                eval_obs_dict,
+                                reward_shaping=reward_shaping,
+                                feature_embellishment=feature_embellishment,
+                                relative_x_pos=relative_x_pos)
                     return  # kids, don't try any of these (expedient hacks) at home!
 
                 # Evaluate.
