@@ -149,6 +149,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 # Evaluate.
                 eval_episode_rewards = []
                 eval_qs = []
+                eval_steps = []
                 if eval_env is not None:
                     eval_episode_reward = 0.
                     for t_rollout in range(nb_eval_steps):
@@ -164,32 +165,38 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                             eval_episode_rewards.append(eval_episode_reward)
                             eval_episode_rewards_history.append(eval_episode_reward)
                             eval_episode_reward = 0.
+                            eval_steps.append(t_rollout+1)
+                            break
 
             mpi_size = MPI.COMM_WORLD.Get_size()
             # Log stats.
             # XXX shouldn't call np.mean on variable length lists
             duration = time.time() - start_time
-            stats = agent.get_stats()
-            combined_stats = stats.copy()
-            combined_stats['rollout/return'] = np.mean(epoch_episode_rewards)
-            combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
-            combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
-            combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
-            combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
-            combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
-            combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
-            combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
-            combined_stats['total/duration'] = duration
-            combined_stats['total/steps_per_second'] = float(t) / float(duration)
-            combined_stats['total/episodes'] = episodes
-            combined_stats['rollout/episodes'] = epoch_episodes
-            combined_stats['rollout/actions_std'] = np.std(epoch_actions)
+            if nb_epochs and nb_epoch_cycles and nb_train_steps > 0:
+                stats = agent.get_stats()
+                combined_stats = stats.copy()
+                combined_stats['rollout/return'] = np.mean(epoch_episode_rewards)
+                combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
+                combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
+                combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
+                combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
+                combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
+                combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
+                combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
+                combined_stats['total/duration'] = duration
+                combined_stats['total/steps_per_second'] = float(t) / float(duration)
+                combined_stats['total/episodes'] = episodes
+                combined_stats['rollout/episodes'] = epoch_episodes
+                combined_stats['rollout/actions_std'] = np.std(epoch_actions)
+            else:
+                combined_stats = {}
             # Evaluation statistics.
             if eval_env is not None:
                 combined_stats['eval/return'] = np.mean(eval_episode_rewards)
                 combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
                 combined_stats['eval/Q'] = np.mean(eval_qs)
                 combined_stats['eval/episodes'] = len(eval_episode_rewards)
+                combined_stats['eval/steps'] = np.mean(eval_steps)
             def as_scalar(x):
                 if isinstance(x, np.ndarray):
                     assert x.size == 1
@@ -211,8 +218,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             logger.info('')
             logdir = logger.get_dir()
 
-            logger.info('Saving model to', saved_model_dir + saved_model_basename)
-            saver.save(sess, saved_model_path, global_step=epoch, write_meta_graph=False)
+            if nb_epochs and nb_epoch_cycles and nb_train_steps > 0:
+                logger.info('Saving model to', saved_model_dir + saved_model_basename)
+                saver.save(sess, saved_model_path, global_step=epoch, write_meta_graph=False)
 
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):

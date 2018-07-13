@@ -21,6 +21,33 @@ from pdb import set_trace
 import gc
 gc.enable()
 
+def dispatch(seed, noise_type=None, layer_norm=None, evaluation=False, **kwargs):
+    if kwargs['crowdai_submit']:
+        crowdai_submit()
+    elif kwargs['eval_only']:
+        evaluate(seed, noise_type, layer_norm, evaluation, **kwargs)
+    else:
+        run(seed, noise_type, layer_norm, evaluation, **kwargs)
+
+def ignoring_int(k, v, **kwargs):
+    if kwargs[k] != v:
+        logger.warn('Ignoring {:s}={:d}, using {:d} instead'.format(k, kwargs[k], v))
+
+def evaluate(seed, noise_type, layer_norm, evaluation, **kwargs):
+    ignoring_int('nb_epochs', 1, **kwargs)
+    kwargs['nb_epochs'] = 1
+    ignoring_int('nb_epoch_cycles', 1, **kwargs)
+    kwargs['nb_epoch_cycles'] = 1
+    ignoring_int('nb_rollout_steps', 0, **kwargs)
+    kwargs['nb_rollout_steps'] = 0
+    ignoring_int('nb_train_steps', 0, **kwargs)
+    kwargs['nb_train_steps'] = 0
+
+    run(seed, noise_type, layer_norm, evaluation, **kwargs)
+
+def crowdai_submit():
+    logger.info('TODO: submit to crowdai')
+
 def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     # Configure things.
     rank = MPI.COMM_WORLD.Get_rank()
@@ -57,6 +84,8 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['reward_shaping']
     del kwargs['feature_embellishment']
     del kwargs['relative_x_pos']
+    del kwargs['crowdai_submit']
+    del kwargs['eval_only']
 
     # Parse noise_type
     action_noise = None
@@ -142,6 +171,8 @@ def parse_args():
     boolean_flag(parser, 'reward-shaping', default=False)
     boolean_flag(parser, 'feature-embellishment', default=False)
     boolean_flag(parser, 'relative-x-pos', default=True)
+    boolean_flag(parser, 'crowdai-submit', default=False)  # for submission to crowdai nips prosthetic challenge, must be used with --restore-model-name
+    boolean_flag(parser, 'eval-only', default=False)  # for running evaluation only, no training, must be used with --restore-model-name
     args = parser.parse_args()
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
     # they agree with the other parameters
@@ -156,5 +187,4 @@ if __name__ == '__main__':
     args = parse_args()
     if MPI.COMM_WORLD.Get_rank() == 0:
         logger.configure()
-    # Run actual script.
-    run(**args)
+    dispatch(**args)
