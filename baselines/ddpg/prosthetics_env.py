@@ -1,11 +1,147 @@
 import numpy as np
 import gym
+import copy
 from pdb import set_trace
 from gym.utils import seeding
 import osim.env
+from baselines import logger
 
 prosthetics_env_observation_len = None
 
+def project_values(obj, accumulator=None):
+    if accumulator is None:
+        accumulator = []
+    _project_values(obj, accumulator)
+    return accumulator
+
+def _project_values(obj, accumulator):
+    if type(obj).__name__ == "list":
+        [_project_values(item, accumulator) for item in obj]
+    elif type(obj).__name__ == "dict":
+        [_project_values(obj[key], accumulator) for key in sorted(obj.keys())]
+    else:
+        accumulator.append(obj)
+
+def _embellish_features_inplace(observation_dict):
+    observation_dict["z_torso_lean"] = torso_lean(observation_dict)
+    llean = legs_lean(observation_dict)
+    observation_dict["z_femur_l_lean"] = llean[0]
+    observation_dict["z_femur_r_lean"] = llean[1]
+    observation_dict["z_knees_flexion"] = knees_flexion(observation_dict)
+
+# The head and pelvis entries contain 3 numbers, the x, y, and z coordinates.
+# Lean is defined as:
+#   Standing straight up = 0
+#   Fallen on face -> +inf
+#   Fallen on back -> -inf
+def torso_lean(observation_dict):
+    body_pos = observation_dict["body_pos"]
+    head = body_pos["head"]
+    pelvis = body_pos["pelvis"]
+    return (head[0] - pelvis[0]) / (head[1] - pelvis[1])
+
+# Only generate negative rewards for undesired states so that "successful"
+# observations reflect actual rewards.
+def torso_lean_reward(observation_dict):
+    lean = observation_dict["z_torso_lean"]
+    reward = 0
+    if lean < 0 and lean >= -0.1:
+        reward = -2
+    elif lean < -0.1 and lean >= -0.2:
+        reward = -3
+    elif lean < -0.3:
+        reward = -20
+    return reward
+
+# The femur_l and femur_r entries contain 3 numbers, the x, y, and z coordinates.
+# It's unclear what part of the femur (center?) is referred to, but the idea
+# here is to average the femur positions and determine where this position
+# leans relative to the femur.
+# Lean is defined as:
+#   Standing straight up = 0
+#   Fallen on face -> +inf
+#   Fallen on back -> -inf
+def legs_lean(observation_dict):
+    body_pos = observation_dict["body_pos"]
+    pelvis = body_pos["pelvis"]
+    femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
+    return [
+        (pelvis[0] - femur_l[0]) / (pelvis[1] - femur_l[1]),
+        (pelvis[0] - femur_r[0]) / (pelvis[1] - femur_r[1])
+    ]
+
+# Only generate negative rewards for undesired states so that "successful"
+# observations reflect actual rewards.
+def legs_lean_reward(observation_dict):
+    femur_l = observation_dict["z_femur_l_lean"]
+    femur_r = observation_dict["z_femur_r_lean"]
+    reward = 0
+    if femur_l < 0 and femur_l >= -0.1 and femur_r < 0 and femur_r >= -0.1:
+        reward = -2
+    elif femur_l < -0.1 and femur_l >= -0.2 and femur_r < -0.1 and femur_r >= -0.2:
+        reward = -3
+    elif femur_l < -0.3 and femur_r < -0.3:
+        reward = -20
+    return reward
+
+# The knee_l and knee_r entries contain just one number, the joint flexion.
+# A positive flexion number means (hyper)extension. Typically the largest
+# positive flexion is about 0.2 or 0.3.
+# Negative flexion means, well, flexion. These numbers can reach ~ -5.0 based
+# on empirical observation.
+# The only documentation I could find says that actual physical flexion can
+# reach ~ 100 degrees.
+def knees_flexion(observation_dict):
+    joint_pos = observation_dict["joint_pos"]
+    return joint_pos["knee_l"][0] + joint_pos["knee_r"][0]
+
+def knees_flexion_reward(observation_dict):
+    flexion = observation_dict["z_knees_flexion"]
+    reward = 0
+    if flexion > 0:
+        reward = -2
+    return reward
+
+# Modifies the observation_dict in place.
+def _adjust_relative_x_pos_inplace(observation_dict):
+    mass_center_pos = observation_dict["misc"]["mass_center_pos"]
+    body_pos = observation_dict["body_pos"]
+    for body_part in ["calcn_l", "talus_l", "tibia_l", "toes_l", "femur_l", "femur_r", "head", "pelvis", "torso", "pros_foot_r", "pros_tibia_r"]:
+        body_pos[body_part][0] -= mass_center_pos[0]
+    observation_dict["joint_pos"]["ground_pelvis"][0] -= mass_center_pos[0]
+
+# Transform the observation dictionary returned by the opensim environment
+# step by applying various transformations such as embellishing the feature set
+# with additional derived features, and changing absolute coordinate positions
+# to relative ones.
+# Finally, if project=True, transform the dictionary into a vector.
+def transform_observation(observation_dict, reward_shaping, feature_embellishment, relative_x_pos):
+    observation_dict_copy= copy.deepcopy(observation_dict)
+    # observation_dict_copy = {}.update(observation_dict)
+    if reward_shaping or feature_embellishment:
+        _embellish_features_inplace(observation_dict_copy)
+    if relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
+        _adjust_relative_x_pos_inplace(observation_dict_copy)
+    return observation_dict_copy, project_values(observation_dict_copy)
+
+# Must not have any side effects (do *not* modify observation_dict in place).
+def shaped_reward(observation_dict, reward, done):
+    torso_r = torso_lean_reward(observation_dict)
+    legs_r = legs_lean_reward(observation_dict)
+    knees_r = knees_flexion_reward(observation_dict)
+
+    torso = observation_dict["z_torso_lean"]
+    z_femur_l_lean = observation_dict["z_femur_l_lean"]
+    z_femur_r_lean = observation_dict["z_femur_r_lean"]
+    knees_flexion = observation_dict["z_knees_flexion"]
+
+    shaped_reward = reward + torso_r + legs_r + knees_r
+
+    if done:
+        logger.debug("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}, {:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
+            reward, shaped_reward, torso_r, torso, legs_r, z_femur_l_lean, z_femur_r_lean, knees_r, knees_flexion))
+
+    return shaped_reward
 
 class Wrapper(osim.env.ProstheticsEnv):
     def __init__(self, osim_env, frameskip, reward_shaping, feature_embellishment, relative_x_pos):
@@ -51,7 +187,6 @@ class Wrapper(osim.env.ProstheticsEnv):
             high=o_high[0],
             shape=(prosthetics_env_observation_len,),
             dtype=np.float32)
-        print("observation_space shape is ({:d},)".format(prosthetics_env_observation_len))
 
         a_low = self.env.action_space.low
         a_high = self.env.action_space.high
@@ -64,16 +199,16 @@ class Wrapper(osim.env.ProstheticsEnv):
         self.env.change_model(**kwargs)
 
     def reset(self, project=True):
-        observation = self.env.reset(project=False)  # never project=True when calling the ProstheticsEnv
-        if self.reward_shaping or self.feature_embellishment:
-            self.embellish_features(observation)
-        if self.relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
-            self.adjust_relative_x_pos(observation)
+        observation_dict = self.env.reset(project=False)  # never project=True when calling the osim ProstheticsEnv
+        observation_dict, observation_projection = transform_observation(
+            observation_dict,
+            reward_shaping=self.reward_shaping,
+            feature_embellishment=self.feature_embellishment,
+            relative_x_pos=self.relative_x_pos)
         if project:
-            projection = []
-            self._project(observation, projection)
-            observation = projection
-        return observation
+            return observation_projection
+        else:
+            return observation_dict
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -82,98 +217,24 @@ class Wrapper(osim.env.ProstheticsEnv):
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
             observation_dict, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
-            observation = self.transform_observation(observation_dict, project=True)
+            observation_dict, observation_projection = transform_observation(
+                observation_dict,
+                reward_shaping=self.reward_shaping,
+                feature_embellishment=self.feature_embellishment,
+                relative_x_pos=self.relative_x_pos)
             if self.reward_shaping:
-                reward = self.shaped_reward(observation_dict, reward, done)
-            self.prev_step = observation, reward, done, info
+                reward = shaped_reward(observation_dict, reward, done)
+            self.prev_step = observation_dict, observation_projection, reward, done, info
         else:
-            observation, reward, done, info = self.prev_step
+            observation_dict, observation_projection, reward, done, info = self.prev_step
         self.step_num += 1
-        return observation, reward, done, info
-
-    # Transform the observation dictionary returned by the opensim environment
-    # step by applying various transformations such as embellishing the feature set
-    # with additional derived features, and changing absolute coordinate positions
-    # to relative ones.
-    # Finally, if project=True, transform the dictionary into a vector.
-    def transform_observation(self, observation_dict, project):
-        if self.reward_shaping or self.feature_embellishment:
-            self.embellish_features(observation_dict)
-        if self.relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
-            self.adjust_relative_x_pos(observation_dict)
         if project:
-            projection = []
-            self._project(observation_dict, projection)
-            observation = projection
+            return observation_projection, reward, done, info
         else:
-            observation = observation_dict
-        return observation
+            return observation_dict, reward, done, info
 
     def _openai_to_opensim_action(self, action):
         return action + 0.5
-
-    def _project(self, obj, accumulator=[]):
-        if type(obj).__name__ == "list":
-            [self._project(item, accumulator) for item in obj]
-        elif type(obj).__name__ == "dict":
-            [self._project(obj[key], accumulator) for key in sorted(obj.keys())]
-        else:
-            accumulator.append(obj)
-
-    # The head and pelvis entries contain 3 numbers, the x, y, and z coordinates.
-    # Lean is defined as:
-    #   Standing straight up = 0
-    #   Fallen on face -> +inf
-    #   Fallen on back -> -inf
-    def torso_lean(self, observation_dict):
-        body_pos = observation_dict["body_pos"]
-        head = body_pos["head"]
-        pelvis = body_pos["pelvis"]
-        return (head[0] - pelvis[0]) / (head[1] - pelvis[1])
-
-    # Only generate negative rewards for undesired states so that "successful"
-    # observations reflect actual rewards.
-    def torso_lean_reward(self, observation_dict):
-        lean = observation_dict["z_torso_lean"]
-        reward = 0
-        if lean < 0 and lean >= -0.1:
-            reward = -2
-        elif lean < -0.1 and lean >= -0.2:
-            reward = -3
-        elif lean < -0.3:
-            reward = -20
-        return reward
-
-    # The femur_l and femur_r entries contain 3 numbers, the x, y, and z coordinates.
-    # It's unclear what part of the femur (center?) is referred to, but the idea
-    # here is to average the femur positions and determine where this position
-    # leans relative to the femur.
-    # Lean is defined as:
-    #   Standing straight up = 0
-    #   Fallen on face -> +inf
-    #   Fallen on back -> -inf
-    def legs_lean(self, observation_dict):
-        body_pos = observation_dict["body_pos"]
-        pelvis = body_pos["pelvis"]
-        femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
-        return [
-            (pelvis[0] - femur_l[0]) / (pelvis[1] - femur_l[1]),
-            (pelvis[0] - femur_r[0]) / (pelvis[1] - femur_r[1])
-        ]
-
-    # Only generate negative rewards for undesired states so that "successful"
-    # observations reflect actual rewards.
-    def legs_lean_reward(self, observation_dict):
-        femur_l = observation_dict["z_femur_l_lean"]
-        femur_r = observation_dict["z_femur_r_lean"]
-        reward = 0
-        if femur_l < 0 and femur_l >= -0.1 and femur_r < 0 and femur_r >= -0.1:
-            reward = -2
-        elif femur_l < -0.1 and femur_l >= -0.2 and femur_r < -0.1 and femur_r >= -0.2:
-            reward = -3
-        elif femur_l < -0.3 and femur_r < -0.3:
-            reward = -20
-        return reward
 
     # The knee_l and knee_r entries contain just one number, the joint flexion.
     # A positive flexion number means (hyper)extension. Typically the largest
@@ -186,65 +247,23 @@ class Wrapper(osim.env.ProstheticsEnv):
         joint_pos = observation_dict["joint_pos"]
         return joint_pos["knee_l"][0] + joint_pos["knee_r"][0]
 
-    def knees_flexion_reward(self, observation_dict):
-        flexion = observation_dict["z_knees_flexion"]
-        reward = 0
-        if flexion > 0:
-            reward = -2
-        return reward
-
-    # Modifies the observation_dict in place.
-    def embellish_features(self, observation_dict):
-        observation_dict["z_torso_lean"] = self.torso_lean(observation_dict)
-        legs_lean = self.legs_lean(observation_dict)
-        observation_dict["z_femur_l_lean"] = legs_lean[0]
-        observation_dict["z_femur_r_lean"] = legs_lean[1]
-        observation_dict["z_knees_flexion"] = self.knees_flexion(observation_dict)
-
-    # Must not have any side effects (do *not* modify observation_dict in place).
-    def shaped_reward(self, observation_dict, reward, done):
-        torso_r = self.torso_lean_reward(observation_dict)
-        legs_r = self.legs_lean_reward(observation_dict)
-        knees_r = self.knees_flexion_reward(observation_dict)
-
-        torso = observation_dict["z_torso_lean"]
-        z_femur_l_lean = observation_dict["z_femur_l_lean"]
-        z_femur_r_lean = observation_dict["z_femur_r_lean"]
-        knees_flexion = observation_dict["z_knees_flexion"]
-
-        shaped_reward = reward + torso_r + legs_r + knees_r
-
-        if done:
-            print("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}, {:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
-                reward, shaped_reward, torso_r, torso, legs_r, z_femur_l_lean, z_femur_r_lean, knees_r, knees_flexion))
-
-        return shaped_reward
-
-    # Modifies the observation_dict in place.
-    def adjust_relative_x_pos(self, observation_dict):
-        mass_center_pos = observation_dict["misc"]["mass_center_pos"]
-        body_pos = observation_dict["body_pos"]
-        for body_part in ["calcn_l", "talus_l", "tibia_l", "toes_l", "femur_l", "femur_r", "head", "pelvis", "torso", "pros_foot_r", "pros_tibia_r"]:
-            body_pos[body_part][0] -= mass_center_pos[0]
-        observation_dict["joint_pos"]["ground_pelvis"][0] -= mass_center_pos[0]
-
 
 class EvaluationWrapper(Wrapper):
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
-            observation, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
-            if self.reward_shaping or self.feature_embellishment:
-                self.embellish_features(observation)
-            if self.relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
-                self.adjust_relative_x_pos(observation)
+            observation_dict, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+            observation_dict, observation_projection = transform_observation(
+                observation_dict,
+                reward_shaping=self.reward_shaping,
+                feature_embellishment=self.feature_embellishment,
+                relative_x_pos=self.relative_x_pos)
             if done:
-                print(" eval: reward:{:>6.1f}".format(reward))
-            if project:
-                projection = []
-                self._project(observation, projection)
-                observation = projection
-            self.prev_step = observation, reward, done, info
+                logger.debug(" eval: reward:{:>6.1f}".format(reward))
+            self.prev_step = observation_dict, observation_projection, reward, done, info
         else:
-            observation, reward, done, info = self.prev_step
+            observation_dict, observation_projection, reward, done, info = self.prev_step
         self.step_num += 1
-        return observation, reward, done, info
+        if project:
+            return observation_projection, reward, done, info
+        else:
+            return observation_dict, reward, done, info

@@ -26,7 +26,6 @@ gc.enable()
 
 def dispatch(seed, noise_type=None, layer_norm=None, evaluation=False, **kwargs):
     kwargs['crowdai_client'] = None
-    kwargs['crowdai_token'] = None
     if kwargs['crowdai_submit']:
         crowdai_submit(seed, noise_type, layer_norm, evaluation, **kwargs)
     elif kwargs['eval_only']:
@@ -57,7 +56,7 @@ def crowdai_submit(seed, noise_type, layer_norm, evaluation, **kwargs):
     crowdai_token = kwargs['crowdai_token']
     crowdai_client = Client(remote_base)
     kwargs['crowdai_client'] = crowdai_client
-    evaluate(seed, noise_type, layer_norm, evaluation, **kwargs)
+    evaluate(seed, noise_type, layer_norm, evaluation=True, **kwargs)
 
 def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     # Configure things.
@@ -93,10 +92,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['frameskip']
     del kwargs['eval_frameskip']
     del kwargs['reward_shaping']
-    del kwargs['feature_embellishment']
-    del kwargs['relative_x_pos']
     del kwargs['crowdai_submit']
-    del kwargs['token']
     del kwargs['eval_only']
 
     # Parse noise_type
