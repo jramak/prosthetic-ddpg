@@ -69,7 +69,8 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         frameskip=kwargs['frameskip'],
         reward_shaping=kwargs['reward_shaping'],
         feature_embellishment=kwargs['feature_embellishment'],
-        relative_x_pos=kwargs['relative_x_pos'])
+        relative_x_pos=kwargs['relative_x_pos'],
+        relative_z_pos=kwargs['relative_z_pos'])
     train_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
 
     if evaluation and rank==0:
@@ -78,7 +79,8 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
             frameskip=kwargs['eval_frameskip'],
             reward_shaping=kwargs['reward_shaping'],
             feature_embellishment=kwargs['feature_embellishment'],
-            relative_x_pos=kwargs['relative_x_pos'])
+            relative_x_pos=kwargs['relative_x_pos'],
+            relative_z_pos=kwargs['relative_z_pos'])
         eval_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), 'gym_eval'))
     else:
@@ -178,6 +180,7 @@ def parse_args():
     boolean_flag(parser, 'reward-shaping', default=False)
     boolean_flag(parser, 'feature-embellishment', default=False)
     boolean_flag(parser, 'relative-x-pos', default=True)
+    boolean_flag(parser, 'relative-z-pos', default=True)
     boolean_flag(parser, 'crowdai-submit', default=False)  # for submission to crowdai nips prosthetic challenge, must be used with --restore-model-name
     parser.add_argument('--crowdai-token', default='9c48765358e511504cf7731614afac30')
     boolean_flag(parser, 'eval-only', default=False)  # for running evaluation only, no training, must be used with --restore-model-name

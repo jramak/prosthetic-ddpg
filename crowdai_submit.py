@@ -26,7 +26,8 @@ env = prosthetics_env.Wrapper(osim.env.ProstheticsEnv(visualize=False),
                               frameskip=1,
                               reward_shaping=False,
                               feature_embellishment=False,
-                              relative_x_pos=False)
+                              relative_x_pos=False,
+                              relative_z_pos=False)
 
 # IMPLEMENTATION OF YOUR CONTROLLER
 # my_controller = ... (for example the one trained in keras_rl)

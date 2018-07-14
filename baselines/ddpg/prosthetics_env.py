@@ -122,24 +122,50 @@ def knees_flexion_reward(observation_dict):
 
 # Modifies the observation_dict in place.
 def _adjust_relative_x_pos_inplace(observation_dict):
-    mass_center_pos = observation_dict["misc"]["mass_center_pos"]
+    xindex = 0
+    ground_pelvis_pos = observation_dict["joint_pos"]["ground_pelvis"]
     body_pos = observation_dict["body_pos"]
-    for body_part in ["calcn_l", "talus_l", "tibia_l", "toes_l", "femur_l", "femur_r", "head", "pelvis", "torso", "pros_foot_r", "pros_tibia_r"]:
-        body_pos[body_part][0] -= mass_center_pos[0]
-    observation_dict["joint_pos"]["ground_pelvis"][0] -= mass_center_pos[0]
+    # This code demonstrates that:
+    #   observation_dict["body_pos"]["pelvis"] != observation_dict["joint_pos"]["ground_pelvis"]
+    # However, I don't know what the difference is.
+    #if body_pos["pelvis"][xindex] != ground_pelvis_pos[xindex]:
+    #    logger.warn('observation_dict["body_pos"]["pelvis"] != observation_dict["joint_pos"]["ground_pelvis"]',
+    #        body_pos["pelvis"], observation_dict["joint_pos"]["ground_pelvis"])
+    for body_part in ["calcn_l", "talus_l", "tibia_l", "toes_l", "femur_l", "femur_r", "head", "torso", "pros_foot_r", "pros_tibia_r"]:
+        body_pos[body_part][xindex] -= ground_pelvis_pos[xindex]
+    # documentation says mass_center_pos has x,y,z coords but observation shows only 2, let's leave the x coord alone
+    #observation_dict["misc"]["mass_center_pos"][xindex] -= ground_pelvis_pos[xindex]
+
+# Modifies the observation_dict in place.
+def _adjust_relative_z_pos_inplace(observation_dict):
+    zindex = 2
+    ground_pelvis_pos = observation_dict["joint_pos"]["ground_pelvis"]
+    body_pos = observation_dict["body_pos"]
+    # This code demonstrates that:
+    #   observation_dict["body_pos"]["pelvis"] != observation_dict["joint_pos"]["ground_pelvis"]
+    # However, I don't know what the difference is.
+    #if body_pos["pelvis"][zindex] != ground_pelvis_pos[zindex]:
+    #    logger.warn('observation_dict["body_pos"]["pelvis"] != observation_dict["joint_pos"]["ground_pelvis"]',
+    #        body_pos["pelvis"], observation_dict["joint_pos"]["ground_pelvis"])
+    for body_part in ["calcn_l", "talus_l", "tibia_l", "toes_l", "femur_l", "femur_r", "head", "torso", "pros_foot_r", "pros_tibia_r"]:
+        body_pos[body_part][zindex] -= ground_pelvis_pos[zindex]
+    # documentation says mass_center_pos has x,y,z coords but observation shows only 2
+    #observation_dict["misc"]["mass_center_pos"][zindex] -= ground_pelvis_pos[zindex]
 
 # Transform the observation dictionary returned by the opensim environment
 # step by applying various transformations such as embellishing the feature set
 # with additional derived features, and changing absolute coordinate positions
 # to relative ones.
 # Finally, if project=True, transform the dictionary into a vector.
-def transform_observation(observation_dict, reward_shaping, feature_embellishment, relative_x_pos):
+def transform_observation(observation_dict, reward_shaping, feature_embellishment, relative_x_pos, relative_z_pos):
     observation_dict_copy= copy.deepcopy(observation_dict)
     # observation_dict_copy = {}.update(observation_dict)
     if reward_shaping or feature_embellishment:
         _embellish_features_inplace(observation_dict_copy)
     if relative_x_pos:  # adjust the relative_x_pos *after* embellish_features please
         _adjust_relative_x_pos_inplace(observation_dict_copy)
+    if relative_z_pos:  # adjust the relative_z_pos *after* embellish_features please
+        _adjust_relative_z_pos_inplace(observation_dict_copy)
     return observation_dict_copy, project_values(observation_dict_copy)
 
 # Must not have any side effects (do *not* modify observation_dict in place).
@@ -162,7 +188,7 @@ def shaped_reward(observation_dict, reward, done):
     return shaped_reward
 
 class Wrapper(osim.env.ProstheticsEnv):
-    def __init__(self, osim_env, frameskip, reward_shaping, feature_embellishment, relative_x_pos):
+    def __init__(self, osim_env, frameskip, reward_shaping, feature_embellishment, relative_x_pos, relative_z_pos):
         global prosthetics_env_observation_len
         assert(type(osim_env).__name__) == "ProstheticsEnv"
 
@@ -171,6 +197,7 @@ class Wrapper(osim.env.ProstheticsEnv):
         self.reward_shaping = reward_shaping
         self.feature_embellishment = feature_embellishment
         self.relative_x_pos = relative_x_pos
+        self.relative_z_pos = relative_z_pos
         self.frameskip = frameskip
         self.step_num = 0
 
@@ -222,7 +249,8 @@ class Wrapper(osim.env.ProstheticsEnv):
             observation_dict,
             reward_shaping=self.reward_shaping,
             feature_embellishment=self.feature_embellishment,
-            relative_x_pos=self.relative_x_pos)
+            relative_x_pos=self.relative_x_pos,
+            relative_z_pos=self.relative_z_pos)
         if project:
             return observation_projection
         else:
@@ -240,7 +268,8 @@ class Wrapper(osim.env.ProstheticsEnv):
                 observation_dict,
                 reward_shaping=self.reward_shaping,
                 feature_embellishment=self.feature_embellishment,
-                relative_x_pos=self.relative_x_pos)
+                relative_x_pos=self.relative_x_pos,
+                relative_z_pos=self.relative_z_pos)
             if self.reward_shaping:
                 reward = shaped_reward(observation_dict, reward, done)
             self.prev_step = observation_dict, observation_projection, reward, done, info
@@ -273,7 +302,8 @@ class EvaluationWrapper(Wrapper):
                 observation_dict,
                 reward_shaping=self.reward_shaping,
                 feature_embellishment=self.feature_embellishment,
-                relative_x_pos=self.relative_x_pos)
+                relative_x_pos=self.relative_x_pos,
+                relative_z_pos=self.relative_z_pos)
             if done:
                 logger.debug(" eval: reward:{:>6.1f}".format(reward))
             self.prev_step = observation_dict, observation_projection, reward, done, info
