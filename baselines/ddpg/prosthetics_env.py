@@ -8,11 +8,19 @@ from baselines import logger
 
 prosthetics_env_observation_len = None
 
+def _clip_to_action_space(action):
+    clipped_action = np.clip(action, 0., 1.)
+    actions_equal = clipped_action == action
+    if not np.all(actions_equal):
+        logger.warn("Had to clip action since it wasn't constrained to the [0,1] action space:", action)
+    return clipped_action
+
 def openai_to_opensim_action(action):
-    return action + 0.5
+    #return _clip_to_action_space(action + 0.5)
+    return _clip_to_action_space((action + 1.0) * 0.5)
 
 def openai_to_crowdai_submit_action(action):
-    return (action + 1.0) * 0.5
+    return _clip_to_action_space((action + 1.0) * 0.5)
 
 def project_values(obj, accumulator=None):
     if accumulator is None:
@@ -202,8 +210,8 @@ class Wrapper(osim.env.ProstheticsEnv):
         a_high = self.env.action_space.high
         assert(np.shape(a_low) == np.shape(a_high))
         self.action_space = gym.spaces.Box(
-            -0.5 + np.zeros(np.shape(a_low)),
-            0.5 + np.zeros(np.shape(a_high)))
+            -1. + np.zeros(np.shape(a_low)),
+            1. + np.zeros(np.shape(a_high)))
 
     def change_model(self, **kwargs):
         self.env.change_model(**kwargs)
@@ -226,7 +234,8 @@ class Wrapper(osim.env.ProstheticsEnv):
 
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
-            observation_dict, reward, done, info = self.env.step(openai_to_opensim_action(action), project=False)
+            opensim_action = openai_to_opensim_action(action)
+            observation_dict, reward, done, info = self.env.step(opensim_action, project=False)
             observation_dict, observation_projection = transform_observation(
                 observation_dict,
                 reward_shaping=self.reward_shaping,
@@ -258,7 +267,8 @@ class Wrapper(osim.env.ProstheticsEnv):
 class EvaluationWrapper(Wrapper):
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
-            observation_dict, reward, done, info = self.env.step(openai_to_opensim_action(action), project=False)
+            opensim_action = openai_to_opensim_action(action)
+            observation_dict, reward, done, info = self.env.step(opensim_action, project=False)
             observation_dict, observation_projection = transform_observation(
                 observation_dict,
                 reward_shaping=self.reward_shaping,
