@@ -8,6 +8,12 @@ from baselines import logger
 
 prosthetics_env_observation_len = None
 
+def openai_to_opensim_action(action):
+    return action + 0.5
+
+def openai_to_crowdai_submit_action(action):
+    return (action + 1.0) * 0.5
+
 def project_values(obj, accumulator=None):
     if accumulator is None:
         accumulator = []
@@ -46,11 +52,11 @@ def torso_lean_reward(observation_dict):
     lean = observation_dict["z_torso_lean"]
     reward = 0
     if lean < 0 and lean >= -0.1:
-        reward = -2
+        reward = -1
     elif lean < -0.1 and lean >= -0.2:
-        reward = -3
+        reward = -2
     elif lean < -0.3:
-        reward = -20
+        reward = -3
     return reward
 
 # The femur_l and femur_r entries contain 3 numbers, the x, y, and z coordinates.
@@ -77,11 +83,11 @@ def legs_lean_reward(observation_dict):
     femur_r = observation_dict["z_femur_r_lean"]
     reward = 0
     if femur_l < 0 and femur_l >= -0.1 and femur_r < 0 and femur_r >= -0.1:
-        reward = -2
+        reward = -1
     elif femur_l < -0.1 and femur_l >= -0.2 and femur_r < -0.1 and femur_r >= -0.2:
-        reward = -3
+        reward = -2
     elif femur_l < -0.3 and femur_r < -0.3:
-        reward = -20
+        reward = -3
     return reward
 
 # The knee_l and knee_r entries contain just one number, the joint flexion.
@@ -98,8 +104,12 @@ def knees_flexion(observation_dict):
 def knees_flexion_reward(observation_dict):
     flexion = observation_dict["z_knees_flexion"]
     reward = 0
-    if flexion > 0:
+    if flexion > 0.3:
+        reward = -3
+    elif flexion > 0.2:
         reward = -2
+    elif flexion > 0.1:
+        reward = -1
     return reward
 
 # Modifies the observation_dict in place.
@@ -216,7 +226,7 @@ class Wrapper(osim.env.ProstheticsEnv):
 
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
-            observation_dict, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+            observation_dict, reward, done, info = self.env.step(openai_to_opensim_action(action), project=False)
             observation_dict, observation_projection = transform_observation(
                 observation_dict,
                 reward_shaping=self.reward_shaping,
@@ -233,9 +243,6 @@ class Wrapper(osim.env.ProstheticsEnv):
         else:
             return observation_dict, reward, done, info
 
-    def _openai_to_opensim_action(self, action):
-        return action + 0.5
-
     # The knee_l and knee_r entries contain just one number, the joint flexion.
     # A positive flexion number means (hyper)extension. Typically the largest
     # positive flexion is about 0.2 or 0.3.
@@ -251,7 +258,7 @@ class Wrapper(osim.env.ProstheticsEnv):
 class EvaluationWrapper(Wrapper):
     def step(self, action, project=True):
         if self.step_num % self.frameskip == 0:
-            observation_dict, reward, done, info = self.env.step(self._openai_to_opensim_action(action), project=False)
+            observation_dict, reward, done, info = self.env.step(openai_to_opensim_action(action), project=False)
             observation_dict, observation_projection = transform_observation(
                 observation_dict,
                 reward_shaping=self.reward_shaping,

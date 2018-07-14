@@ -150,6 +150,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
                 # Submit to crowdai competition. What a hack. :)
                 #if crowdai_client is not None and crowdai_token is not None and eval_env is not None:
+                crowdai_submit_count = 0
                 if crowdai_client is not None and crowdai_token is not None:
                     eval_obs_dict = crowdai_client.env_create(crowdai_token, env_id="ProstheticsEnv")
                     eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
@@ -158,8 +159,16 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         feature_embellishment=feature_embellishment,
                         relative_x_pos=relative_x_pos)
                     while True:
-                        submit_action, _ = agent.pi(eval_obs_projection, apply_noise=False, compute_Q=False)
-                        [eval_obs_dict, reward, done, info] = crowdai_client.env_step(submit_action.tolist(), True)
+                        action, _ = agent.pi(eval_obs_projection, apply_noise=False, compute_Q=False)
+                        submit_action = prosthetics_env.openai_to_crowdai_submit_action(action)
+                        clipped_submit_action = np.clip(submit_action, 0., 1.)
+                        actions_equal = clipped_submit_action == submit_action
+                        if not np.all(actions_equal):
+                            logger.info("crowdai_submit_count:", crowdai_submit_count)
+                            logger.info("  openai-action:", action)
+                            logger.info("  submit-action:", submit_action)
+                        crowdai_submit_count += 1
+                        [eval_obs_dict, reward, done, info] = crowdai_client.env_step(clipped_submit_action.tolist(), True)
                         #[eval_obs_dict, reward, done, info] = crowdai_client.env_step(agent.pi(eval_obs_projection, apply_noise=False, compute_Q=False), True)
                         eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
                             eval_obs_dict,
@@ -167,14 +176,17 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                             feature_embellishment=feature_embellishment,
                             relative_x_pos=relative_x_pos)
                         if done:
+                            logger.debug("done: crowdai_submit_count:", crowdai_submit_count)
                             eval_obs_dict = crowdai_client.env_reset()
                             if not eval_obs_dict:
                                 break
+                            logger.debug("done: eval_obs_dict exists after reset")
                             eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
                                 eval_obs_dict,
                                 reward_shaping=reward_shaping,
                                 feature_embellishment=feature_embellishment,
                                 relative_x_pos=relative_x_pos)
+                    crowdai_client.submit()
                     return  # kids, don't try any of these (expedient hacks) at home!
 
                 # Evaluate.
