@@ -68,6 +68,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     train_env = prosthetics_env.Wrapper(osim_env.ProstheticsEnv(visualize=kwargs['render']),
         frameskip=kwargs['frameskip'],
         reward_shaping=kwargs['reward_shaping'],
+        reward_shaping_x=kwargs['reward_shaping_x'],
         feature_embellishment=kwargs['feature_embellishment'],
         relative_x_pos=kwargs['relative_x_pos'],
         relative_z_pos=kwargs['relative_z_pos'])
@@ -78,6 +79,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         eval_env = prosthetics_env.EvaluationWrapper(osim_env.ProstheticsEnv(visualize=kwargs['render_eval']),
             frameskip=kwargs['eval_frameskip'],
             reward_shaping=kwargs['reward_shaping'],
+            reward_shaping_x=kwargs['reward_shaping_x'],
             feature_embellishment=kwargs['feature_embellishment'],
             relative_x_pos=kwargs['relative_x_pos'],
             relative_z_pos=kwargs['relative_z_pos'])
@@ -91,6 +93,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     del kwargs['model']
     del kwargs['prosthetic']
     del kwargs['difficulty']
+    del kwargs['reward_shaping_x']
     del kwargs['frameskip']
     del kwargs['eval_frameskip']
     del kwargs['crowdai_submit']
@@ -178,6 +181,7 @@ def parse_args():
     parser.add_argument('--saved-model-basename', type=str, default=None)  # all models are saved to saved-models/<saved_model_basename>-<epoch>
     parser.add_argument('--restore-model-name', type=str, default=None)  # all models are saved to saved-models/<restore_model_name>
     boolean_flag(parser, 'reward-shaping', default=False)
+    parser.add_argument('--reward-shaping-x', type=float, default=1.)  # multiplier for reward shaping
     boolean_flag(parser, 'feature-embellishment', default=False)
     boolean_flag(parser, 'relative-x-pos', default=True)
     boolean_flag(parser, 'relative-z-pos', default=True)

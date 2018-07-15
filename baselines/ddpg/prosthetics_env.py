@@ -179,7 +179,11 @@ def knees_flexion_reward(observation_dict):
 def _adjust_relative_x_pos_inplace(observation_dict):
     xindex = 0
     ground_pelvis_pos = observation_dict["joint_pos"]["ground_pelvis"]
+    #logger.info("ground_pelvis_pos", ground_pelvis_pos)
     body_pos = observation_dict["body_pos"]
+    pelvis_pos = body_pos["pelvis"]
+    #logger.info("  pelvis", body_pos["pelvis"])
+    #logger.info("  before head", body_pos["head"])
     # This code demonstrates that:
     #   observation_dict["body_pos"]["pelvis"] != observation_dict["joint_pos"]["ground_pelvis"]
     # However, I don't know what the difference is.
@@ -187,7 +191,8 @@ def _adjust_relative_x_pos_inplace(observation_dict):
     #    logger.warn('observation_dict["body_pos"]["pelvis"] != observation_dict["joint_pos"]["ground_pelvis"]',
     #        body_pos["pelvis"], observation_dict["joint_pos"]["ground_pelvis"])
     for body_part in ["calcn_l", "talus_l", "tibia_l", "toes_l", "femur_l", "femur_r", "head", "torso", "pros_foot_r", "pros_tibia_r"]:
-        body_pos[body_part][xindex] -= ground_pelvis_pos[xindex]
+        body_pos[body_part][xindex] -= pelvis_pos[xindex]
+    #logger.info("  after head", body_pos["head"])
     # documentation says mass_center_pos has x,y,z coords but observation shows only 2, let's leave the x coord alone
     #observation_dict["misc"]["mass_center_pos"][xindex] -= ground_pelvis_pos[xindex]
 
@@ -196,6 +201,7 @@ def _adjust_relative_z_pos_inplace(observation_dict):
     zindex = 2
     ground_pelvis_pos = observation_dict["joint_pos"]["ground_pelvis"]
     body_pos = observation_dict["body_pos"]
+    pelvis_pos = body_pos["pelvis"]
     # This code demonstrates that:
     #   observation_dict["body_pos"]["pelvis"] != observation_dict["joint_pos"]["ground_pelvis"]
     # However, I don't know what the difference is.
@@ -203,7 +209,7 @@ def _adjust_relative_z_pos_inplace(observation_dict):
     #    logger.warn('observation_dict["body_pos"]["pelvis"] != observation_dict["joint_pos"]["ground_pelvis"]',
     #        body_pos["pelvis"], observation_dict["joint_pos"]["ground_pelvis"])
     for body_part in ["calcn_l", "talus_l", "tibia_l", "toes_l", "femur_l", "femur_r", "head", "torso", "pros_foot_r", "pros_tibia_r"]:
-        body_pos[body_part][zindex] -= ground_pelvis_pos[zindex]
+        body_pos[body_part][zindex] -= pelvis_pos[zindex]
     # documentation says mass_center_pos has x,y,z coords but observation shows only 2
     #observation_dict["misc"]["mass_center_pos"][zindex] -= ground_pelvis_pos[zindex]
 
@@ -212,7 +218,7 @@ def _adjust_relative_z_pos_inplace(observation_dict):
 # with additional derived features, and changing absolute coordinate positions
 # to relative ones.
 # Finally, if project=True, transform the dictionary into a vector.
-def transform_observation(observation_dict, reward_shaping, feature_embellishment, relative_x_pos, relative_z_pos):
+def transform_observation(observation_dict, reward_shaping, reward_shaping_x, feature_embellishment, relative_x_pos, relative_z_pos):
     observation_dict_copy= copy.deepcopy(observation_dict)
     # observation_dict_copy = {}.update(observation_dict)
     if reward_shaping or feature_embellishment:
@@ -224,12 +230,12 @@ def transform_observation(observation_dict, reward_shaping, feature_embellishmen
     return observation_dict_copy, project_values(observation_dict_copy)
 
 # Must not have any side effects (do *not* modify observation_dict in place).
-def shaped_reward(observation_dict, reward, done):
-    torso_xaxis_rwd = torso_xaxis_lean_reward(observation_dict)
-    torso_zaxis_rwd = torso_zaxis_lean_reward(observation_dict)
-    legs_xaxis_rwd = femurs_xaxis_lean_reward(observation_dict)
-    legs_zaxis_rwd = femurs_zaxis_lean_reward(observation_dict)
-    knees_rwd = knees_flexion_reward(observation_dict)
+def shaped_reward(observation_dict, reward, done, reward_shaping_x):
+    torso_xaxis_rwd = torso_xaxis_lean_reward(observation_dict)*reward_shaping_x
+    torso_zaxis_rwd = torso_zaxis_lean_reward(observation_dict)*reward_shaping_x
+    legs_xaxis_rwd = femurs_xaxis_lean_reward(observation_dict)*reward_shaping_x
+    legs_zaxis_rwd = femurs_zaxis_lean_reward(observation_dict)*reward_shaping_x
+    knees_rwd = knees_flexion_reward(observation_dict)*reward_shaping_x
 
     torso_xaxis_lean = observation_dict["z_torso_xaxis_lean"]
     torso_zaxis_lean = observation_dict["z_torso_zaxis_lean"]
@@ -245,16 +251,17 @@ def shaped_reward(observation_dict, reward, done):
         logger.debug("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}, {:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
             reward, shaped_reward, torso_xaxis_rwd, torso_xaxis_lean, legs_xaxis_rwd, z_femur_l_xaxis_lean, z_femur_r_xaxis_lean, knees_rwd, knees_flexion))
 
-    return shaped_reward
+    return shaped_reward*reward_shaping_x
 
 class Wrapper(osim.env.ProstheticsEnv):
-    def __init__(self, osim_env, frameskip, reward_shaping, feature_embellishment, relative_x_pos, relative_z_pos):
+    def __init__(self, osim_env, frameskip, reward_shaping, reward_shaping_x, feature_embellishment, relative_x_pos, relative_z_pos):
         global prosthetics_env_observation_len
         assert(type(osim_env).__name__) == "ProstheticsEnv"
 
         self.__dict__.update(osim_env.__dict__)
         self.env = osim_env
         self.reward_shaping = reward_shaping
+        self.reward_shaping_x = reward_shaping_x
         self.feature_embellishment = feature_embellishment
         self.relative_x_pos = relative_x_pos
         self.relative_z_pos = relative_z_pos
@@ -308,6 +315,7 @@ class Wrapper(osim.env.ProstheticsEnv):
         observation_dict, observation_projection = transform_observation(
             observation_dict,
             reward_shaping=self.reward_shaping,
+            reward_shaping_x=self.reward_shaping_x,
             feature_embellishment=self.feature_embellishment,
             relative_x_pos=self.relative_x_pos,
             relative_z_pos=self.relative_z_pos)
@@ -327,11 +335,12 @@ class Wrapper(osim.env.ProstheticsEnv):
             observation_dict, observation_projection = transform_observation(
                 observation_dict,
                 reward_shaping=self.reward_shaping,
+                reward_shaping_x=self.reward_shaping_x,
                 feature_embellishment=self.feature_embellishment,
                 relative_x_pos=self.relative_x_pos,
                 relative_z_pos=self.relative_z_pos)
             if self.reward_shaping:
-                reward = shaped_reward(observation_dict, reward, done)
+                reward = shaped_reward(observation_dict, reward, done, self.reward_shaping_x)
             self.prev_step = observation_dict, observation_projection, reward, done, info
         else:
             observation_dict, observation_projection, reward, done, info = self.prev_step
@@ -361,6 +370,7 @@ class EvaluationWrapper(Wrapper):
             observation_dict, observation_projection = transform_observation(
                 observation_dict,
                 reward_shaping=self.reward_shaping,
+                reward_shaping_x=0,
                 feature_embellishment=self.feature_embellishment,
                 relative_x_pos=self.relative_x_pos,
                 relative_z_pos=self.relative_z_pos)
