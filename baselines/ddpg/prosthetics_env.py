@@ -37,10 +37,14 @@ def _project_values(obj, accumulator):
         accumulator.append(obj)
 
 def _embellish_features_inplace(observation_dict):
-    observation_dict["z_torso_lean"] = torso_lean(observation_dict)
-    llean = legs_lean(observation_dict)
-    observation_dict["z_femur_l_lean"] = llean[0]
-    observation_dict["z_femur_r_lean"] = llean[1]
+    observation_dict["z_torso_xaxis_lean"] = torso_xaxis_lean(observation_dict)
+    observation_dict["z_torso_zaxis_lean"] = torso_zaxis_lean(observation_dict)
+    legs_xaxis_lean = femurs_xaxis_lean(observation_dict)
+    observation_dict["z_femur_l_xaxis_lean"] = legs_xaxis_lean[0]
+    observation_dict["z_femur_r_xaxis_lean"] = legs_xaxis_lean[1]
+    legs_zaxis_lean = femurs_zaxis_lean(observation_dict)
+    observation_dict["z_femur_l_zaxis_lean"] = legs_zaxis_lean[0]
+    observation_dict["z_femur_r_zaxis_lean"] = legs_zaxis_lean[1]
     observation_dict["z_knees_flexion"] = knees_flexion(observation_dict)
 
 # The head and pelvis entries contain 3 numbers, the x, y, and z coordinates.
@@ -48,16 +52,18 @@ def _embellish_features_inplace(observation_dict):
 #   Standing straight up = 0
 #   Fallen on face -> +inf
 #   Fallen on back -> -inf
-def torso_lean(observation_dict):
+def torso_xaxis_lean(observation_dict):
+    xaxis = 0
+    yaxis = 1
     body_pos = observation_dict["body_pos"]
     head = body_pos["head"]
     pelvis = body_pos["pelvis"]
-    return (head[0] - pelvis[0]) / (head[1] - pelvis[1])
+    return (head[xaxis] - pelvis[xaxis]) / (head[yaxis] - pelvis[yaxis])
 
 # Only generate negative rewards for undesired states so that "successful"
 # observations reflect actual rewards.
-def torso_lean_reward(observation_dict):
-    lean = observation_dict["z_torso_lean"]
+def torso_xaxis_lean_reward(observation_dict):
+    lean = observation_dict["z_torso_xaxis_lean"]
     reward = 0
     if lean < 0 and lean >= -0.1:
         reward = -1
@@ -65,6 +71,30 @@ def torso_lean_reward(observation_dict):
         reward = -2
     elif lean < -0.3:
         reward = -3
+    return reward
+
+# The head and pelvis entries contain 3 numbers, the x, y, and z coordinates.
+# Lean is defined as:
+#   Standing straight up = 0
+#   Fallen on face -> +inf
+#   Fallen on back -> -inf
+def torso_zaxis_lean(observation_dict):
+    zindex = 2
+    yindex = 1
+    body_pos = observation_dict["body_pos"]
+    head = body_pos["head"]
+    pelvis = body_pos["pelvis"]
+    return (head[zindex] - pelvis[zindex]) / (head[yindex] - pelvis[yindex])
+
+# Only generate negative rewards for undesired states so that "successful"
+# observations reflect actual rewards.
+def torso_zaxis_lean_reward(observation_dict):
+    lean = observation_dict["z_torso_zaxis_lean"]
+    reward = 0
+    if lean < -0.1 and lean >= -0.2:
+        reward = -1
+    elif lean < -0.3:
+        reward = -2
     return reward
 
 # The femur_l and femur_r entries contain 3 numbers, the x, y, and z coordinates.
@@ -75,20 +105,33 @@ def torso_lean_reward(observation_dict):
 #   Standing straight up = 0
 #   Fallen on face -> +inf
 #   Fallen on back -> -inf
-def legs_lean(observation_dict):
+def femurs_xaxis_lean(observation_dict):
+    xindex = 0
+    yindex = 1
     body_pos = observation_dict["body_pos"]
     pelvis = body_pos["pelvis"]
     femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
     return [
-        (pelvis[0] - femur_l[0]) / (pelvis[1] - femur_l[1]),
-        (pelvis[0] - femur_r[0]) / (pelvis[1] - femur_r[1])
+        (pelvis[xindex] - femur_l[xindex]) / (pelvis[yindex] - femur_l[yindex]),
+        (pelvis[xindex] - femur_r[xindex]) / (pelvis[yindex] - femur_r[yindex])
+    ]
+
+def femurs_zaxis_lean(observation_dict):
+    zindex = 2
+    yindex = 1
+    body_pos = observation_dict["body_pos"]
+    pelvis = body_pos["pelvis"]
+    femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
+    return [
+        (pelvis[zindex] - femur_l[zindex]) / (pelvis[yindex] - femur_l[yindex]),
+        (pelvis[zindex] - femur_r[zindex]) / (pelvis[yindex] - femur_r[yindex])
     ]
 
 # Only generate negative rewards for undesired states so that "successful"
 # observations reflect actual rewards.
-def legs_lean_reward(observation_dict):
-    femur_l = observation_dict["z_femur_l_lean"]
-    femur_r = observation_dict["z_femur_r_lean"]
+def femurs_xaxis_lean_reward(observation_dict):
+    femur_l = observation_dict["z_femur_l_xaxis_lean"]
+    femur_r = observation_dict["z_femur_r_xaxis_lean"]
     reward = 0
     if femur_l < 0 and femur_l >= -0.1 and femur_r < 0 and femur_r >= -0.1:
         reward = -1
@@ -96,6 +139,18 @@ def legs_lean_reward(observation_dict):
         reward = -2
     elif femur_l < -0.3 and femur_r < -0.3:
         reward = -3
+    return reward
+
+# Only generate negative rewards for undesired states so that "successful"
+# observations reflect actual rewards.
+def femurs_zaxis_lean_reward(observation_dict):
+    femur_l = observation_dict["z_femur_l_zaxis_lean"]
+    femur_r = observation_dict["z_femur_r_zaxis_lean"]
+    reward = 0
+    if femur_l < -0.1 and femur_l >= -0.2 and femur_r < -0.1 and femur_r >= -0.2:
+        reward = -1
+    elif femur_l < -0.3 and femur_r < -0.3:
+        reward = -2
     return reward
 
 # The knee_l and knee_r entries contain just one number, the joint flexion.
@@ -170,20 +225,25 @@ def transform_observation(observation_dict, reward_shaping, feature_embellishmen
 
 # Must not have any side effects (do *not* modify observation_dict in place).
 def shaped_reward(observation_dict, reward, done):
-    torso_r = torso_lean_reward(observation_dict)
-    legs_r = legs_lean_reward(observation_dict)
-    knees_r = knees_flexion_reward(observation_dict)
+    torso_xaxis_rwd = torso_xaxis_lean_reward(observation_dict)
+    torso_zaxis_rwd = torso_zaxis_lean_reward(observation_dict)
+    legs_xaxis_rwd = femurs_xaxis_lean_reward(observation_dict)
+    legs_zaxis_rwd = femurs_zaxis_lean_reward(observation_dict)
+    knees_rwd = knees_flexion_reward(observation_dict)
 
-    torso = observation_dict["z_torso_lean"]
-    z_femur_l_lean = observation_dict["z_femur_l_lean"]
-    z_femur_r_lean = observation_dict["z_femur_r_lean"]
+    torso_xaxis_lean = observation_dict["z_torso_xaxis_lean"]
+    torso_zaxis_lean = observation_dict["z_torso_zaxis_lean"]
+    z_femur_l_xaxis_lean = observation_dict["z_femur_l_xaxis_lean"]
+    z_femur_l_zaxis_lean = observation_dict["z_femur_l_zaxis_lean"]
+    z_femur_r_xaxis_lean = observation_dict["z_femur_r_xaxis_lean"]
+    z_femur_r_zaxis_lean = observation_dict["z_femur_r_zaxis_lean"]
     knees_flexion = observation_dict["z_knees_flexion"]
 
-    shaped_reward = reward + torso_r + legs_r + knees_r
+    shaped_reward = reward + torso_xaxis_rwd + legs_xaxis_rwd + knees_rwd
 
     if done:
         logger.debug("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}, {:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
-            reward, shaped_reward, torso_r, torso, legs_r, z_femur_l_lean, z_femur_r_lean, knees_r, knees_flexion))
+            reward, shaped_reward, torso_xaxis_rwd, torso_xaxis_lean, legs_xaxis_rwd, z_femur_l_xaxis_lean, z_femur_r_xaxis_lean, knees_rwd, knees_flexion))
 
     return shaped_reward
 
