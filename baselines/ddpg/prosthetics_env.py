@@ -239,7 +239,7 @@ def shaped_reward(observation_dict, reward, done):
     z_femur_r_zaxis_lean = observation_dict["z_femur_r_zaxis_lean"]
     knees_flexion = observation_dict["z_knees_flexion"]
 
-    shaped_reward = reward + torso_xaxis_rwd + legs_xaxis_rwd + knees_rwd
+    shaped_reward = reward + torso_xaxis_rwd + torso_zaxis_rwd + legs_xaxis_rwd + legs_zaxis_rwd + knees_rwd
 
     if done:
         logger.debug("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}, {:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
