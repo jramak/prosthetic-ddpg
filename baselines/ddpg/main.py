@@ -75,7 +75,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
 
     if evaluation and rank==0:
         train_env = bench.Monitor(train_env, None)
-        eval_env = prosthetics_env.EvaluationWrapper(osim_env.ProstheticsEnv(visualize=kwargs['render']),
+        eval_env = prosthetics_env.EvaluationWrapper(osim_env.ProstheticsEnv(visualize=kwargs['render_eval']),
             frameskip=kwargs['eval_frameskip'],
             reward_shaping=kwargs['reward_shaping'],
             feature_embellishment=kwargs['feature_embellishment'],
