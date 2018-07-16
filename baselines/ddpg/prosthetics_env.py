@@ -76,8 +76,8 @@ def torso_xaxis_lean_reward(observation_dict):
 # The head and pelvis entries contain 3 numbers, the x, y, and z coordinates.
 # Lean is defined as:
 #   Standing straight up = 0
-#   Fallen on face -> +inf
-#   Fallen on back -> -inf
+#   Fallen on side -> +inf
+#   Fallen on other side -> -inf
 def torso_zaxis_lean(observation_dict):
     zindex = 2
     yindex = 1
@@ -147,9 +147,10 @@ def femurs_zaxis_lean_reward(observation_dict):
     femur_l = observation_dict["z_femur_l_zaxis_lean"]
     femur_r = observation_dict["z_femur_r_zaxis_lean"]
     reward = 0
-    if femur_l < -0.1 and femur_l >= -0.2 and femur_r < -0.1 and femur_r >= -0.2:
+    avg_lean = (femur_l + femur_r) / 2
+    if avg_lean < -0.1 and avg_lean >= -0.2:
         reward = -1
-    elif femur_l < -0.3 and femur_r < -0.3:
+    elif avg_lean < -0.3 and avg_lean < -0.3:
         reward = -2
     return reward
 
@@ -251,7 +252,7 @@ def shaped_reward(observation_dict, reward, done, reward_shaping_x):
         logger.debug("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}, {:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
             reward, shaped_reward, torso_xaxis_rwd, torso_xaxis_lean, legs_xaxis_rwd, z_femur_l_xaxis_lean, z_femur_r_xaxis_lean, knees_rwd, knees_flexion))
 
-    return shaped_reward*reward_shaping_x
+    return shaped_reward
 
 class Wrapper(osim.env.ProstheticsEnv):
     def __init__(self, osim_env, frameskip, reward_shaping, reward_shaping_x, feature_embellishment, relative_x_pos, relative_z_pos):

@@ -179,6 +179,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
                         eval_obs_dict,
                         reward_shaping=reward_shaping,
+                        reward_shaping_x=1.,
                         feature_embellishment=feature_embellishment,
                         relative_x_pos=relative_x_pos,
                         relative_z_pos=relative_z_pos)
@@ -197,6 +198,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
                             eval_obs_dict,
                             reward_shaping=reward_shaping,
+                            reward_shaping_x=1.,
                             feature_embellishment=feature_embellishment,
                             relative_x_pos=relative_x_pos,
                             relative_z_pos=relative_z_pos)
@@ -209,6 +211,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                             eval_obs_dict, eval_obs_projection = prosthetics_env.transform_observation(
                                 eval_obs_dict,
                                 reward_shaping=reward_shaping,
+                                reward_shaping_x=1.,
                                 feature_embellishment=feature_embellishment,
                                 relative_x_pos=relative_x_pos,
                                 relative_z_pos=relative_z_pos)
