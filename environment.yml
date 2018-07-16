@@ -4,30 +4,30 @@ channels:
   - kidzik
   - defaults
 dependencies:
-  - curl=7.60.0=h93b3f91_0
-  - expat=2.2.5=hfc679d8_1
-  - git=2.18.0=0
-  - krb5=1.14.6=0
-  - lapack=3.6.1=1
-  - libiconv=1.15=h470a237_1
-  - libssh2=1.8.0=h5b517e9_2
-  - ca-certificates=2018.03.07=0
-  - certifi=2018.4.16=py36_0
-  - libgfortran=3.0.1=h93005f0_2
-  - mpi4py=2.0.0=py36_0
-  - openmpi=1.6.3=1
-  - openssl=1.0.2o=h26aff7b_0
-  - pip=10.0.1=py36_0
-  - python=3.6.1=2
-  - readline=6.2=2
-  - setuptools=39.2.0=py36_0
-  - sqlite=3.13.0=0
-  - tk=8.5.18=0
-  - wheel=0.31.1=py36_0
-  - xz=5.2.4=h1de35cc_4
-  - zlib=1.2.11=hf3cbc9b_2
-  - openblas=0.2.19=0
-  - opensim=4.0.0=py36_17
+  - curl=7.60.0
+  - expat=2.2.5
+  - git=2.18.0
+  - krb5=1.14.6
+  - lapack=3.6.1
+  - libiconv=1.15
+  - libssh2=1.8.0
+  - ca-certificates=2018.03.07
+  - certifi=2018.4.16
+  - libgfortran=3.0.1
+  - mpi4py=2.0.0
+  - openmpi=1.6.3
+  - openssl=1.0.2o
+  - pip=10.0.1
+  - python=3.6.1
+  - readline=6.2
+  - setuptools=39.2.0
+  - sqlite=3.13.0
+  - tk=8.5.18
+  - wheel=0.31.1
+  - xz=5.2.4
+  - zlib=1.2.11
+  - openblas=0.2.19
+  - opensim=4.0.0
   - pip:
     - absl-py==0.2.2
     - appnope==0.1.0
