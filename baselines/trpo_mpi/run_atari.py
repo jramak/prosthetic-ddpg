@@ -1,4 +1,7 @@
     #!/usr/bin/env python3
+# https://bitbucket.org/mpi4py/mpi4py/issues/54/example-mpi4py-code-not-working
+import mpi4py
+mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 from baselines.common import set_global_seeds
 import os.path as osp

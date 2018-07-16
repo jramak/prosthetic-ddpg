@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # noinspection PyUnresolvedReferences
+# https://bitbucket.org/mpi4py/mpi4py/issues/54/example-mpi4py-code-not-working
+import mpi4py
+mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 from baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
 from baselines import logger

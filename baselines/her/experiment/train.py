@@ -4,6 +4,9 @@ import sys
 import click
 import numpy as np
 import json
+# https://bitbucket.org/mpi4py/mpi4py/issues/54/example-mpi4py-code-not-working
+import mpi4py
+mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 
 from baselines import logger

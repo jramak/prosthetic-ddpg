@@ -15,6 +15,9 @@ from baselines.ddpg.noise import *
 
 import gym
 import tensorflow as tf
+# https://bitbucket.org/mpi4py/mpi4py/issues/54/example-mpi4py-code-not-working
+import mpi4py
+mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 import osim.env as osim_env
 import opensim as osim

@@ -356,6 +356,9 @@ def configure(dir=None, format_strs=None):
     os.makedirs(dir, exist_ok=True)
 
     log_suffix = ''
+    # https://bitbucket.org/mpi4py/mpi4py/issues/54/example-mpi4py-code-not-working
+    import mpi4py
+    mpi4py.rc.recv_mprobe = False
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.Get_rank()
     if rank > 0:

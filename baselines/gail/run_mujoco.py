@@ -5,6 +5,9 @@ Disclaimer: this code is highly based on trpo_mpi at @openai/baselines and @open
 import argparse
 import os.path as osp
 import logging
+# https://bitbucket.org/mpi4py/mpi4py/issues/54/example-mpi4py-code-not-working
+import mpi4py
+mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 from tqdm import tqdm
 

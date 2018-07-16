@@ -1,3 +1,6 @@
+# https://bitbucket.org/mpi4py/mpi4py/issues/54/example-mpi4py-code-not-working
+import mpi4py
+mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 import numpy as np
 from baselines.common import zipsame
@@ -33,8 +36,8 @@ def mpi_moments(x, axis=0, comm=None, keepdims=False):
 
 def test_runningmeanstd():
     import subprocess
-    subprocess.check_call(['mpirun', '-np', '3', 
-        'python','-c', 
+    subprocess.check_call(['mpirun', '-np', '3',
+        'python','-c',
         'from baselines.common.mpi_moments import _helper_runningmeanstd; _helper_runningmeanstd()'])
 
 def _helper_runningmeanstd():
