@@ -15,6 +15,8 @@ from baselines import logger
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
+import pickle
+from pdb import set_trace
 
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
@@ -44,7 +46,11 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     if restore_model_name:
         restore_model_path = saved_model_dir + restore_model_name
     if rank == 0:
-        saver = tf.train.Saver(max_to_keep=100)
+        max_to_keep = 100
+        saver = tf.train.Saver(max_to_keep=max_to_keep)
+        adam_optimizer_store = dict()
+        adam_optimizer_store['actor_optimizer'] = dict()
+        adam_optimizer_store['critic_optimizer'] = dict()
     else:
         saver = None
 
@@ -75,6 +81,23 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         sess.graph.finalize()
 
         agent.reset()
+
+        # restore adam optimizer
+        try:
+            if restore_model_name:
+                logger.info("Restoring pkl file with adam state", restore_model_path)
+                #saver.restore(sess, tf.train.latest_checkpoint(model_path))
+                adam_optimizer_store = pickle.load(open(restore_model_path
+                                                   + ".pkl", "rb"))
+                agent.actor_optimizer.m = adam_optimizer_store['actor_optimizer']['m']
+                agent.actor_optimizer.v = adam_optimizer_store['actor_optimizer']['v']
+                agent.actor_optimizer.t = adam_optimizer_store['actor_optimizer']['t']
+                agent.critic_optimizer.m = adam_optimizer_store['critic_optimizer']['m']
+                agent.critic_optimizer.v = adam_optimizer_store['critic_optimizer']['v']
+                agent.critic_optimizer.t = adam_optimizer_store['critic_optimizer']['t']
+        except:
+            print("Unable to restore adam state from {:s}.".format(restore_model_path))
+
         obs = env.reset()
         if eval_env is not None:
             eval_obs = eval_env.reset()
@@ -267,6 +290,24 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             if nb_epochs and nb_epoch_cycles and nb_train_steps > 0:
                 logger.info('Saving model to', saved_model_dir + saved_model_basename)
                 saver.save(sess, saved_model_path, global_step=epoch, write_meta_graph=False)
+                adam_optimizer_store['actor_optimizer']['m'] = agent.actor_optimizer.m
+                adam_optimizer_store['actor_optimizer']['v'] = agent.actor_optimizer.v
+                adam_optimizer_store['actor_optimizer']['t'] = agent.actor_optimizer.t
+
+                adam_optimizer_store['critic_optimizer']['m'] = agent.critic_optimizer.m
+                adam_optimizer_store['critic_optimizer']['v'] = agent.critic_optimizer.v
+                adam_optimizer_store['critic_optimizer']['t'] = agent.critic_optimizer.t
+
+                pickle.dump(adam_optimizer_store, open((saved_model_path +
+                                                        "-" + str(epoch) +
+                                                        ".pkl"), "wb"))
+                old_epoch = epoch - max_to_keep
+                if old_epoch >= 0:
+                    try:
+                        os.remove(saved_model_path + "-" + str(old_epoch)
+                                  + ".pkl")
+                    except OSError:
+                        pass
 
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):
