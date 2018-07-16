@@ -1,8 +1,6 @@
 ## Installation
 
-Install Anaconda and set up your conda environment by running:
-
-    $ conda env create -f environment.yaml
+Install Miniconda or Anaconda and set up your conda environment by following these intructions: http://osim-rl.stanford.edu/docs/quickstart/
 
 ## Using Tensorboard
 
