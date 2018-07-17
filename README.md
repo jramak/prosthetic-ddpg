@@ -11,6 +11,8 @@ Install Miniconda or Anaconda and set up your conda environment by following the
 
     $ tensorboard --logdir /var/<very long path>
 
+You can also choose the logs directory by setting OPENAI_LOGDIR environment variable.
+
 ## Saving and Restoring Models
 
 Models are always saved after each epoch. If left unspecified, the base filename is generated randomly. Each saved model file is appended with epoch number. To specify a base name for the saved files, use the --saved-model-basename argument:
