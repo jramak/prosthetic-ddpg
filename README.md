@@ -78,3 +78,12 @@ Finally, install remaining packages:
     $ pip install tensorflow
     $ pip install scipy
     $ conda install mpi4py
+
+## Running a job on GCloud
+
+The run_job_gcloud.sh script will run the job and shutdown the vm instance.
+
+    $ source activate opensim-rl
+    $ ./run_job_gcloud.sh "python -m baselines.ddpg.main --nb-epochs 1 --model 3D --difficulty 0 --frameskip 4 --saved-model-basename skip4-shapexz-eval-relxzpos-rsx2 --reward-shaping --reward-shaping-x=2" > logs/test.log
+
+You may use the "screen" command in the google cloud browser window before running the above commands.
