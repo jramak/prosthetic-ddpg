@@ -83,9 +83,10 @@ Finally, install remaining packages:
 
 ## Running a job on GCloud
 
-The run_job_gcloud.sh script will run the job and shutdown the vm instance.
+The run_job_gcloud.sh script can run the job and shutdown the vm instance if needed. If the first argument is the command, the script will simply evaluate the command. In order to shutdown the vm after execution of command, provide "stop-vm" as first argument and command as second argument.
 
     $ source activate opensim-rl
-    $ ./run_job_gcloud.sh "python -m baselines.ddpg.main --nb-epochs 1 --model 3D --difficulty 0 --frameskip 4 --saved-model-basename skip4-shapexz-eval-relxzpos-rsx2 --reward-shaping --reward-shaping-x=2" > logs/test.log
+    $ ./run_job_gcloud.sh "python -m baselines.ddpg.main --nb-epochs 1 --model 3D --difficulty 0 --frameskip 4 --activation selu --saved-model-basename skip4-shapexz-eval-relxzpos-rsx2-ou-selu --noise-type ou_0.2 --reward-shaping --reward-shaping-x=2" > logs/test.log  # vm will not be stopped after execution
+    $ ./run_job_gcloud.sh stop-vm "python -m baselines.ddpg.main --nb-epochs 1 --model 3D --difficulty 0 --frameskip 4 --activation selu --saved-model-basename skip4-shapexz-eval-relxzpos-rsx2-ou-selu --noise-type ou_0.2 --reward-shaping --reward-shaping-x=2" > logs/test.log  # vm will be stopped after execution
 
 You may use the "screen" command in the google cloud browser window before running the above commands.
