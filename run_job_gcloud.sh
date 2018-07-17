@@ -3,5 +3,5 @@ if [ $# -eq 1 ]; then
 elif [ $1 = "stop-vm" ]; then
     eval $2
     echo "Shutting down VM..."
-    #sudo shutdown -h now
+    sudo shutdown -h now
 fi
