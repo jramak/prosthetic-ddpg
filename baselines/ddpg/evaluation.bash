@@ -37,7 +37,7 @@ while true; do
             mv saved-models/${model}.* top-models/
             continue
         }
-        echo "$out" | grep "eval/return_history"
+        echo "$out" | grep "eval/return "
         echo "  Removing it."
         rm saved-models/${model}.*
     done
