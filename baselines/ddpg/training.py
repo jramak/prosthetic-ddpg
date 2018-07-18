@@ -20,6 +20,7 @@ mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 import pickle
 from pdb import set_trace
+import pathlib
 
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
@@ -47,7 +48,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         saved_model_basename = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
     saved_model_path = saved_model_dir + saved_model_basename
     if restore_model_name:
-        restore_model_path = saved_model_dir + restore_model_name
+        restore_model_path = restore_model_name
+        if not pathlib.Path(restore_model_path+'.index').is_file():
+            restore_model_path = saved_model_dir + restore_model_name
     if rank == 0:
         max_to_keep = 100
         saver = tf.train.Saver(max_to_keep=max_to_keep)
