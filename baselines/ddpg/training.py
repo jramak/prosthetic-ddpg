@@ -195,9 +195,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         clipped_submit_action = np.clip(submit_action, 0., 1.)
                         actions_equal = clipped_submit_action == submit_action
                         if not np.all(actions_equal):
-                            logger.info("crowdai_submit_count:", crowdai_submit_count)
-                            logger.info("  openai-action:", action)
-                            logger.info("  submit-action:", submit_action)
+                            logger.debug("crowdai_submit_count:", crowdai_submit_count)
+                            logger.debug("  openai-action:", action)
+                            logger.debug("  submit-action:", submit_action)
                         crowdai_submit_count += 1
                         [eval_obs_dict, reward, done, info] = crowdai_client.env_step(clipped_submit_action.tolist(), True)
                         #[eval_obs_dict, reward, done, info] = crowdai_client.env_step(agent.pi(eval_obs_projection, apply_noise=False, compute_Q=False), True)
