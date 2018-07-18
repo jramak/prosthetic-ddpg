@@ -296,7 +296,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             logger.info('')
             logdir = logger.get_dir()
 
-            if nb_epochs and nb_epoch_cycles and nb_train_steps > 0:
+            if nb_epochs and nb_epoch_cycles and nb_train_steps > 0 and nb_rollout_steps > 0:
                 logger.info('Saving model to', saved_model_dir + saved_model_basename)
                 saver.save(sess, saved_model_path, global_step=epoch, write_meta_graph=False)
                 adam_optimizer_store['actor_optimizer']['m'] = agent.actor_optimizer.m
