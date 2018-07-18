@@ -11,12 +11,12 @@ while true; do
         if [[ $interrupt = true ]]; then
             break
         fi
+        model=$(echo "$filename" | sed -e 's,\.index,,' | sed -e 's,saved-models/,,')
+        echo "Checking ${model}..."
         [[ -f $filename ]] || {
             echo "  The TensorFlow Saver() might have beaten us to deleting this one."
             continue
         }
-        model=$(echo "$filename" | sed -e 's,\.index,,' | sed -e 's,saved-models/,,')
-        echo "Checking ${model}..."
         out=$(python -m baselines.ddpg.main \
             --model 3D \
             --difficulty 0 \
