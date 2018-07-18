@@ -10,9 +10,9 @@ def sample(logits):
     return tf.argmax(logits - tf.log(-tf.log(noise)), 1)
 
 def cat_entropy(logits):
-    a0 = logits - tf.reduce_max(logits, 1, keep_dims=True)
+    a0 = logits - tf.reduce_max(logits, 1, keepdims=True)
     ea0 = tf.exp(a0)
-    z0 = tf.reduce_sum(ea0, 1, keep_dims=True)
+    z0 = tf.reduce_sum(ea0, 1, keepdims=True)
     p0 = ea0 / z0
     return tf.reduce_sum(p0 * (tf.log(z0) - a0), 1)
 
@@ -108,7 +108,7 @@ def lstm(xs, ms, s, scope, nh, init_scale=1.0):
     return xs, s
 
 def _ln(x, g, b, e=1e-5, axes=[1]):
-    u, s = tf.nn.moments(x, axes=axes, keep_dims=True)
+    u, s = tf.nn.moments(x, axes=axes, keepdims=True)
     x = (x-u)/tf.sqrt(s+e)
     x = x*g+b
     return x

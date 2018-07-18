@@ -147,18 +147,18 @@ class CategoricalPd(Pd):
             logits=self.logits,
             labels=one_hot_actions)
     def kl(self, other):
-        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
-        a1 = other.logits - tf.reduce_max(other.logits, axis=-1, keep_dims=True)
+        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keepdims=True)
+        a1 = other.logits - tf.reduce_max(other.logits, axis=-1, keepdims=True)
         ea0 = tf.exp(a0)
         ea1 = tf.exp(a1)
-        z0 = tf.reduce_sum(ea0, axis=-1, keep_dims=True)
-        z1 = tf.reduce_sum(ea1, axis=-1, keep_dims=True)
+        z0 = tf.reduce_sum(ea0, axis=-1, keepdims=True)
+        z1 = tf.reduce_sum(ea1, axis=-1, keepdims=True)
         p0 = ea0 / z0
         return tf.reduce_sum(p0 * (a0 - tf.log(z0) - a1 + tf.log(z1)), axis=-1)
     def entropy(self):
-        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
+        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keepdims=True)
         ea0 = tf.exp(a0)
-        z0 = tf.reduce_sum(ea0, axis=-1, keep_dims=True)
+        z0 = tf.reduce_sum(ea0, axis=-1, keepdims=True)
         p0 = ea0 / z0
         return tf.reduce_sum(p0 * (tf.log(z0) - a0), axis=-1)
     def sample(self):
