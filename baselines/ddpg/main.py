@@ -183,9 +183,9 @@ def parse_args():
     parser.add_argument('--eval-frameskip', type=int, default=1)
     parser.add_argument('--saved-model-basename', type=str, default=None)  # all models are saved to saved-models/<saved_model_basename>-<epoch>
     parser.add_argument('--restore-model-name', type=str, default=None)  # all models are saved to saved-models/<restore_model_name>
-    boolean_flag(parser, 'reward-shaping', default=False)
+    boolean_flag(parser, 'reward-shaping', default=True)
     parser.add_argument('--reward-shaping-x', type=float, default=1.)  # multiplier for reward shaping
-    boolean_flag(parser, 'feature-embellishment', default=False)
+    boolean_flag(parser, 'feature-embellishment', default=True)
     boolean_flag(parser, 'relative-x-pos', default=True)
     boolean_flag(parser, 'relative-z-pos', default=True)
     boolean_flag(parser, 'crowdai-submit', default=False)  # for submission to crowdai nips prosthetic challenge, must be used with --restore-model-name
