@@ -10,6 +10,7 @@ while true; do
             break
         fi
         model=$(echo "$filename" | sed -e 's,\.index,,' | sed -e 's,saved-models/,,')
+        [ "$filename" = "saved-models/*.index" ] && continue
         echo "Checking ${model}..."
         [ -f "$filename" ] || {
             echo "  The TensorFlow Saver() might have beaten us to deleting this one."
