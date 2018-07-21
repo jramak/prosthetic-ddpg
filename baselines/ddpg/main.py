@@ -124,10 +124,17 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         else:
             raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))
 
+    actor_layer_sizes = [int(x) for x in kwargs['actor_layer_sizes'].replace('[','').replace(']','').split(',')]
+    critic_layer_sizes = [int(x) for x in kwargs['critic_layer_sizes'].replace('[','').replace(']','').split(',')]
+    del kwargs['actor_layer_sizes']
+    del kwargs['critic_layer_sizes']
+    logger.info('actor_layer_sizes', actor_layer_sizes)
+    logger.info('critic_layer_sizes', critic_layer_sizes)
+
     # Configure components.
     memory = Memory(limit=int(1e6), action_shape=train_env.action_space.shape, observation_shape=train_env.observation_space.shape)
-    critic = Critic(layer_norm=layer_norm, activation=kwargs['activation'])
-    actor = Actor(nb_actions, layer_norm=layer_norm, activation=kwargs['activation'])
+    critic = Critic(layer_norm=layer_norm, activation=kwargs['activation'], layer_sizes=critic_layer_sizes)
+    actor = Actor(nb_actions, layer_norm=layer_norm, activation=kwargs['activation'], layer_sizes=actor_layer_sizes)
 
     del kwargs['activation']
 
@@ -165,6 +172,8 @@ def parse_args():
     parser.add_argument('--batch-size', type=int, default=64)  # per MPI worker
     parser.add_argument('--actor-lr', type=float, default=1e-4)
     parser.add_argument('--critic-lr', type=float, default=1e-3)
+    parser.add_argument('--actor-layer-sizes', type=str, default='[64,64]')
+    parser.add_argument('--critic-layer-sizes', type=str, default='[64,64]')
     boolean_flag(parser, 'popart', default=False)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--reward-scale', type=float, default=1.)

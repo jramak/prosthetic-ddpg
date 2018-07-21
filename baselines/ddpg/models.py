@@ -30,11 +30,12 @@ def apply_activation(x, activation):
 
 
 class Actor(Model):
-    def __init__(self, nb_actions, name='actor', layer_norm=True, activation='selu'):
+    def __init__(self, nb_actions, name='actor', layer_norm=True, activation='selu', layer_sizes=[64,64]):
         super(Actor, self).__init__(name=name)
         self.nb_actions = nb_actions
         self.layer_norm = layer_norm
         self.activation = activation
+        self.layer_sizes = layer_sizes
 
     def __call__(self, obs, reuse=False):
         with tf.variable_scope(self.name) as scope:
@@ -42,12 +43,12 @@ class Actor(Model):
                 scope.reuse_variables()
 
             x = obs
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, self.layer_sizes[0])
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
             x = apply_activation(x, self.activation)
 
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, self.layer_sizes[1])
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
             x = apply_activation(x, self.activation)
@@ -58,10 +59,11 @@ class Actor(Model):
 
 
 class Critic(Model):
-    def __init__(self, name='critic', layer_norm=True, activation='selu'):
+    def __init__(self, name='critic', layer_norm=True, activation='selu', layer_sizes=[64,64]):
         super(Critic, self).__init__(name=name)
         self.layer_norm = layer_norm
         self.activation = activation
+        self.layer_sizes = layer_sizes
 
     def __call__(self, obs, action, reuse=False):
         with tf.variable_scope(self.name) as scope:
@@ -69,13 +71,13 @@ class Critic(Model):
                 scope.reuse_variables()
 
             x = obs
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, self.layer_sizes[0])
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
             x = apply_activation(x, self.activation)
 
             x = tf.concat([x, action], axis=-1)
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, self.layer_sizes[1])
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
             x = apply_activation(x, self.activation)
