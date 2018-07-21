@@ -101,7 +101,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 agent.critic_optimizer.m = adam_optimizer_store['critic_optimizer']['m']
                 agent.critic_optimizer.v = adam_optimizer_store['critic_optimizer']['v']
                 agent.critic_optimizer.t = adam_optimizer_store['critic_optimizer']['t']
-                agent.param_noise = adam_optimizer_store['param_noise']
+                if 'param_noise' in adam_optimizer_store:
+                    agent.param_noise = adam_optimizer_store['param_noise']
         except:
             print("Unable to restore adam state from {:s}.".format(restore_model_path))
 
