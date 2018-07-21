@@ -22,6 +22,9 @@ import pickle
 from pdb import set_trace
 import pathlib
 
+NB_EVAL_EPOCHS=1
+NB_EVAL_EPOCH_CYCLES=3
+NB_EVAL_STEPS=1000
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
@@ -126,6 +129,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         epoch_actions = []
         epoch_qs = []
         epoch_episodes = 0
+        eval_episode_rewards = []
+        eval_qs = []
+        eval_steps = []
         for epoch in range(nb_epochs):
             for cycle in range(nb_epoch_cycles):
                 # Perform rollouts.
@@ -227,9 +233,6 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     return  # kids, don't try any of these (expedient hacks) at home!
 
                 # Evaluate.
-                eval_episode_rewards = []
-                eval_qs = []
-                eval_steps = []
                 if eval_env is not None:
                     eval_episode_reward = 0.
                     for t_rollout in range(nb_eval_steps):
@@ -273,7 +276,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             # Evaluation statistics.
             if eval_env is not None:
                 combined_stats['eval/return'] = np.mean(eval_episode_rewards)
-                combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
+                #combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
+                combined_stats['eval/return_std'] = np.std(eval_episode_rewards)
                 combined_stats['eval/Q'] = np.mean(eval_qs)
                 combined_stats['eval/episodes'] = len(eval_episode_rewards)
                 combined_stats['eval/steps'] = np.mean(eval_steps)

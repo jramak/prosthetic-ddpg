@@ -41,10 +41,12 @@ def ignoring_int(k, v, **kwargs):
         logger.warn('Ignoring {:s}={:d}, using {:d} instead'.format(k, kwargs[k], v))
 
 def evaluate(seed, noise_type, layer_norm, evaluation, **kwargs):
-    ignoring_int('nb_epochs', 1, **kwargs)
-    kwargs['nb_epochs'] = 1
-    ignoring_int('nb_epoch_cycles', 1, **kwargs)
-    kwargs['nb_epoch_cycles'] = 1
+    ignoring_int('nb_epochs', training.NB_EVAL_EPOCHS, **kwargs)
+    kwargs['nb_epochs'] = training.NB_EVAL_EPOCHS
+    ignoring_int('nb_epoch_cycles', training.NB_EVAL_EPOCH_CYCLES, **kwargs)
+    kwargs['nb_epoch_cycles'] = training.NB_EVAL_EPOCH_CYCLES
+    ignoring_int('nb_eval_steps', training.NB_EVAL_STEPS, **kwargs)
+    kwargs['nb_eval_steps'] = training.NB_EVAL_STEPS
     ignoring_int('nb_rollout_steps', 0, **kwargs)
     kwargs['nb_rollout_steps'] = 0
     ignoring_int('nb_train_steps', 0, **kwargs)
@@ -170,7 +172,7 @@ def parse_args():
     parser.add_argument('--nb-epochs', type=int, default=500)  # with default settings, perform 1M steps total
     parser.add_argument('--nb-epoch-cycles', type=int, default=20)
     parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
+    parser.add_argument('--nb-eval-steps', type=int, default=1000)  # per epoch cycle and MPI worker
     parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
     parser.add_argument('--num-timesteps', type=int, default=None)
