@@ -110,7 +110,8 @@ def femurs_xaxis_lean(observation_dict):
     yindex = 1
     body_pos = observation_dict["body_pos"]
     pelvis = body_pos["pelvis"]
-    femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
+    # Yes, use the tibias here. They're at the *bases* of the femurs.
+    femur_l, femur_r = body_pos["tibia_l"], body_pos["pros_tibia_r"]
     return [
         (pelvis[xindex] - femur_l[xindex]) / (pelvis[yindex] - femur_l[yindex]),
         (pelvis[xindex] - femur_r[xindex]) / (pelvis[yindex] - femur_r[yindex])
@@ -121,7 +122,8 @@ def femurs_zaxis_lean(observation_dict):
     yindex = 1
     body_pos = observation_dict["body_pos"]
     pelvis = body_pos["pelvis"]
-    femur_l, femur_r = body_pos["femur_l"], body_pos["femur_r"]
+    # Yes, use the tibias here. They're at the *bases* of the femurs.
+    femur_l, femur_r = body_pos["tibia_l"], body_pos["pros_tibia_r"]
     return [
         (pelvis[zindex] - femur_l[zindex]) / (pelvis[yindex] - femur_l[yindex]),
         (pelvis[zindex] - femur_r[zindex]) / (pelvis[yindex] - femur_r[yindex])
@@ -147,11 +149,12 @@ def femurs_zaxis_lean_reward(observation_dict):
     femur_l = observation_dict["z_femur_l_zaxis_lean"]
     femur_r = observation_dict["z_femur_r_zaxis_lean"]
     reward = 0
-    avg_lean = (femur_l + femur_r) / 2
-    if avg_lean < -0.1 and avg_lean >= -0.2:
+    avg_lean = abs((femur_l + femur_r) / 2)
+    if avg_lean > 0.1 and avg_lean <= 0.2:
         reward = -1
-    elif avg_lean < -0.3 and avg_lean < -0.3:
+    elif avg_lean > 0.2:
         reward = -2
+
     return reward
 
 # The knee_l and knee_r entries contain just one number, the joint flexion.
