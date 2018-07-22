@@ -26,6 +26,8 @@ def apply_activation(x, activation):
         x = tf.nn.elu(x)
     elif activation == 'relu':
         x = tf.nn.relu(x)
+    elif activation == 'leaky_relu':
+        x = tf.nn.leaky_relu(x)
     return x
 
 
