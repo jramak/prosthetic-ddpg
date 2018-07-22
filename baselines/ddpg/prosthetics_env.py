@@ -140,12 +140,10 @@ def femurs_xaxis_lean_reward(observation_dict):
     femur_l = observation_dict["z_femur_l_xaxis_lean"]
     femur_r = observation_dict["z_femur_r_xaxis_lean"]
     reward = 0
-    if femur_l < 0 and femur_l >= -0.1 and femur_r < 0 and femur_r >= -0.1:
+    if femur_l < -0.1 and femur_l >= -0.2 and femur_r < -0.1 and femur_r >= -0.2:
         reward = -1
-    elif femur_l < -0.1 and femur_l >= -0.2 and femur_r < -0.1 and femur_r >= -0.2:
-        reward = -2
     elif femur_l < -0.3 and femur_r < -0.3:
-        reward = -3
+        reward = -2
     return reward
 
 # Only generate negative rewards for undesired states so that "successful"
