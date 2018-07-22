@@ -89,11 +89,11 @@ def torso_zaxis_lean(observation_dict):
 # Only generate negative rewards for undesired states so that "successful"
 # observations reflect actual rewards.
 def torso_zaxis_lean_reward(observation_dict):
-    lean = observation_dict["z_torso_zaxis_lean"]
+    lean = abs(observation_dict["z_torso_zaxis_lean"])
     reward = 0
-    if lean < -0.1 and lean >= -0.2:
+    if lean > 0.1 and lean <= 0.2:
         reward = -1
-    elif lean < -0.3:
+    elif lean > 0.3:
         reward = -2
     return reward
 
@@ -154,7 +154,6 @@ def femurs_zaxis_lean_reward(observation_dict):
         reward = -1
     elif avg_lean > 0.2:
         reward = -2
-
     return reward
 
 # The knee_l and knee_r entries contain just one number, the joint flexion.
