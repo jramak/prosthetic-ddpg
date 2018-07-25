@@ -58,7 +58,9 @@ def torso_xaxis_lean(observation_dict):
     body_pos = observation_dict["body_pos"]
     head = body_pos["head"]
     pelvis = body_pos["pelvis"]
-    return (head[xaxis] - pelvis[xaxis]) / (head[yaxis] - pelvis[yaxis])
+    #return (head[xaxis] - pelvis[xaxis]) / (head[yaxis] - pelvis[yaxis])
+    # We've already normalized all the body_pos xaxis values wrt the pelvis.
+    return head[xaxis] / (head[yaxis] - pelvis[yaxis])
 
 # Only generate negative rewards for undesired states so that "successful"
 # observations reflect actual rewards.
@@ -113,8 +115,11 @@ def femurs_xaxis_lean(observation_dict):
     # Yes, use the tibias here. They're at the *bases* of the femurs.
     femur_l, femur_r = body_pos["tibia_l"], body_pos["pros_tibia_r"]
     return [
-        (pelvis[xindex] - femur_l[xindex]) / (pelvis[yindex] - femur_l[yindex]),
-        (pelvis[xindex] - femur_r[xindex]) / (pelvis[yindex] - femur_r[yindex])
+        #(pelvis[xindex] - femur_l[xindex]) / (pelvis[yindex] - femur_l[yindex]),
+        #(pelvis[xindex] - femur_r[xindex]) / (pelvis[yindex] - femur_r[yindex])
+        # We've already normalized all the body_pos xaxis values wrt the pelvis.
+        -femur_l[xindex] / (pelvis[yindex] - femur_l[yindex]),
+        -femur_r[xindex] / (pelvis[yindex] - femur_r[yindex])
     ]
 
 def femurs_zaxis_lean(observation_dict):
@@ -176,12 +181,41 @@ def knees_flexion_reward(observation_dict):
         reward = -2
     elif flexion > 0.1:
         reward = -1
-    return reward
+    return reward * 0.5
+
+def tibias_pos_reward(observation_dict):
+    yindex = 1
+    zindex = 2
+    body_pos = observation_dict["body_pos"]
+    pelvis_pos = body_pos["pelvis"]
+    tibia_l_pos = body_pos["tibia_l"]
+    tibia_r_pos = body_pos["pros_tibia_r"]
+    reward = 0
+    # Don't lift the knees above the pelvis.
+    #logger.info("obs")
+    #logger.info("  pelvis_pos", pelvis_pos)
+    #logger.info("  tibia_l_pos", tibia_l_pos)
+    if tibia_l_pos[yindex] > pelvis_pos[yindex] * 0.9:
+        reward += -1
+    elif tibia_r_pos[yindex] > pelvis_pos[yindex] * 0.9:
+        reward += -1
+    # Don't cross over the center line.
+    elif tibia_l_pos[zindex] > 0:
+        reward += -1
+    elif tibia_r_pos[zindex] < 0:
+        reward += -1
+    #logger.info("obs:")
+    #logger.info("  tibia_l pos", body_pos["tibia_l"])
+    #logger.info("  pros_tibia_r pos", body_pos["pros_tibia_r"])
+    #body_pos_rot = observation_dict["body_pos_rot"]
+    #logger.info("  tibia_l rot", body_pos_rot["tibia_l"])
+    #logger.info("  pros_tibia_r pos", body_pos_rot["pros_tibia_r"])
+    return reward * 0.
 
 # Modifies the observation_dict in place.
 def _adjust_relative_x_pos_inplace(observation_dict):
     xindex = 0
-    ground_pelvis_pos = observation_dict["joint_pos"]["ground_pelvis"]
+    #ground_pelvis_pos = observation_dict["joint_pos"]["ground_pelvis"]
     #logger.info("ground_pelvis_pos", ground_pelvis_pos)
     body_pos = observation_dict["body_pos"]
     pelvis_pos = body_pos["pelvis"]
@@ -202,7 +236,7 @@ def _adjust_relative_x_pos_inplace(observation_dict):
 # Modifies the observation_dict in place.
 def _adjust_relative_z_pos_inplace(observation_dict):
     zindex = 2
-    ground_pelvis_pos = observation_dict["joint_pos"]["ground_pelvis"]
+    #ground_pelvis_pos = observation_dict["joint_pos"]["ground_pelvis"]
     body_pos = observation_dict["body_pos"]
     pelvis_pos = body_pos["pelvis"]
     # This code demonstrates that:
