@@ -13,6 +13,10 @@ Install Miniconda or Anaconda and set up your conda environment by following the
 
 You can also choose the logs directory by setting OPENAI_LOGDIR environment variable.
 
+## Running jobs in parallel using MPI
+
+    $ mpiexec -n <NUM_CPUS> python -m baselines.ddpg.main --nb-epochs 3 --model 3D --difficulty 0 --frameskip 4 --activation leaky_relu --actor-layer-sizes '[256,256]' --critic-layer-sizes '[256,256]'
+
 ## Saving and Restoring Models
 
 Models are always saved after each epoch. If left unspecified, the base filename is generated randomly. Each saved model file is appended with epoch number. To specify a base name for the saved files, use the --saved-model-basename argument:

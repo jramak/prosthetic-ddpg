@@ -188,7 +188,7 @@ def parse_args():
     boolean_flag(parser, 'evaluation', default=False)
     parser.add_argument('--difficulty', type=int, choices=[0,1,2], default=2)
     parser.add_argument('--model', type=str, choices=['2D', '3D'], default='3D')
-    parser.add_argument('--activation', type=str, choices=['relu', 'selu', 'elu'], default='selu')
+    parser.add_argument('--activation', type=str, choices=['relu', 'selu', 'elu', 'leaky_relu'], default='selu')
     boolean_flag(parser, 'prosthetic', default=True)
     parser.add_argument('--frameskip', type=int, default=1)
     parser.add_argument('--eval-frameskip', type=int, default=1)
