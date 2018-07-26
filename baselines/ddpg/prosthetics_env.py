@@ -97,7 +97,7 @@ def torso_zaxis_lean_reward(observation_dict):
         reward = -1
     elif lean > 0.3:
         reward = -2
-    return reward
+    return reward * 0.
 
 # The femur_l and femur_r entries contain 3 numbers, the x, y, and z coordinates.
 # It's unclear what part of the femur (center?) is referred to, but the idea
@@ -210,7 +210,7 @@ def tibias_pos_reward(observation_dict):
     #body_pos_rot = observation_dict["body_pos_rot"]
     #logger.info("  tibia_l rot", body_pos_rot["tibia_l"])
     #logger.info("  pros_tibia_r pos", body_pos_rot["pros_tibia_r"])
-    return reward * 0.
+    return reward
 
 # Modifies the observation_dict in place.
 def _adjust_relative_x_pos_inplace(observation_dict):
@@ -273,6 +273,7 @@ def shaped_reward(observation_dict, reward, done, reward_shaping_x):
     legs_xaxis_rwd = femurs_xaxis_lean_reward(observation_dict)*reward_shaping_x
     legs_zaxis_rwd = femurs_zaxis_lean_reward(observation_dict)*reward_shaping_x
     knees_rwd = knees_flexion_reward(observation_dict)*reward_shaping_x
+    tibias_rwd = tibias_pos_reward(observation_dict)*reward_shaping_x
 
     torso_xaxis_lean = observation_dict["z_torso_xaxis_lean"]
     torso_zaxis_lean = observation_dict["z_torso_zaxis_lean"]
@@ -282,7 +283,7 @@ def shaped_reward(observation_dict, reward, done, reward_shaping_x):
     z_femur_r_zaxis_lean = observation_dict["z_femur_r_zaxis_lean"]
     knees_flexion = observation_dict["z_knees_flexion"]
 
-    shaped_reward = reward + torso_xaxis_rwd + torso_zaxis_rwd + legs_xaxis_rwd + legs_zaxis_rwd + knees_rwd
+    shaped_reward = reward + torso_xaxis_rwd + torso_zaxis_rwd + legs_xaxis_rwd + legs_zaxis_rwd + knees_rwd + tibias_rwd
 
     if done:
         logger.debug("train: reward:{:>6.1f} shaped reward:{:>6.1f} torso:{:>6.1f} ({:>8.3f}) legs:{:>6.1f} ({:>8.3f}, {:>8.3f}) knee flex:{:>6.1f} ({:>8.3f})".format(
