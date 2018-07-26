@@ -54,14 +54,11 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         restore_model_path = restore_model_name
         if not pathlib.Path(restore_model_path+'.index').is_file():
             restore_model_path = saved_model_dir + restore_model_name
-    if rank == 0:
-        max_to_keep = 100
-        saver = tf.train.Saver(max_to_keep=max_to_keep)
-        adam_optimizer_store = dict()
-        adam_optimizer_store['actor_optimizer'] = dict()
-        adam_optimizer_store['critic_optimizer'] = dict()
-    else:
-        saver = None
+    max_to_keep = 100
+    saver = tf.train.Saver(max_to_keep=max_to_keep)
+    adam_optimizer_store = dict()
+    adam_optimizer_store['actor_optimizer'] = dict()
+    adam_optimizer_store['critic_optimizer'] = dict()
 
     step = 0
     episode = 0
