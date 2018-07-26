@@ -77,7 +77,7 @@ while true; do
             mv saved-models/${model_name}.* mismatched-models/
             continue
         }
-        echo "$out" | grep "eval/return " | grep ' [6-9][0-9][0-9]' && {
+        echo "$out" | grep "eval/return " | grep ' [8-9][0-9][0-9]' && {
             echo "  Moving it to top-models/"
             mv saved-models/${model_name}.* top-models/
             continue
