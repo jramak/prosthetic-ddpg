@@ -97,7 +97,7 @@ def torso_zaxis_lean_reward(observation_dict):
         reward = -1
     elif lean > 0.3:
         reward = -2
-    return reward * 0.
+    return reward
 
 # The femur_l and femur_r entries contain 3 numbers, the x, y, and z coordinates.
 # It's unclear what part of the femur (center?) is referred to, but the idea
