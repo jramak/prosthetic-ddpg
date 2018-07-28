@@ -36,7 +36,18 @@ def _project_values(obj, accumulator):
     else:
         accumulator.append(obj)
 
+def project_selected_values(observation_dict):
+    l = [
+        observation_dict["body_pos"],
+        observation_dict["body_vel"],
+        observation_dict["body_acc"],
+        observation_dict["joint_pos"],
+        observation_dict["joint_vel"]
+        ]
+    return project_values(l)
+
 def _embellish_features_inplace(observation_dict):
+    #tibias_pos_reward(observation_dict)  # just for printing debugging statements during evaluation
     observation_dict["z_torso_xaxis_lean"] = torso_xaxis_lean(observation_dict)
     observation_dict["z_torso_zaxis_lean"] = torso_zaxis_lean(observation_dict)
     legs_xaxis_lean = femurs_xaxis_lean(observation_dict)
@@ -262,6 +273,7 @@ def transform_observation(observation_dict, reward_shaping, reward_shaping_x, fe
         _adjust_relative_x_pos_inplace(observation_dict_copy)
     if relative_z_pos:  # adjust the relative_z_pos *after* embellish_features please
         _adjust_relative_z_pos_inplace(observation_dict_copy)
+    #return observation_dict_copy, project_selected_values(observation_dict_copy)
     return observation_dict_copy, project_values(observation_dict_copy)
 
 # Must not have any side effects (do *not* modify observation_dict in place).
