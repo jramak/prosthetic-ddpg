@@ -77,24 +77,28 @@ while true; do
             mv saved-models/${model_name}.* mismatched-models/
             continue
         }
-        echo "$out" | grep "eval/return " | grep ' [8-9][0-9][0-9]' && {
+        echo "$out" | grep "eval/epoch_episode_reward_mean" | grep ' [8-9][0-9][0-9]' && {
             echo "  Moving it to top-models/"
             mv saved-models/${model_name}.* top-models/
             continue
         }
-        echo "$out" | grep "eval/return " | grep ' [1-9][0-9][0-9][0-9]' && {
+        echo "$out" | grep "eval/epoch_episode_reward_mean" | grep ' [1-9][0-9][0-9][0-9]' && {
             echo "  Moving it to top-models/"
             mv saved-models/${model_name}.* top-models/
             continue
         }
-        echo "$out" | grep "eval/return " | grep ' [1-9].[0-9]e+[0-9][0-9]' && {  # e.g., 1.1e+03
+        echo "$out" | grep "eval/epoch_episode_reward_mean" | grep ' [1-9].[0-9]e+[0-9][0-9]' && {  # e.g., 1.1e+03
             echo "  Moving it to top-models/"
             mv saved-models/${model_name}.* top-models/
             continue
         }
-        echo "$out" | grep "eval/return "
-        echo "  Removing it."
-        rm saved-models/${model_name}.*
+        echo "$out" | grep "eval/epoch_episode_reward_mean"
+        if [ $? = 0 ]; then
+            echo "  Removing it."
+            rm saved-models/${model_name}.*
+        else
+            echo "  This one is puzzling. Taking no action."
+        fi
     done
     sleep 10
 done
