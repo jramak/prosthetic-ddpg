@@ -242,7 +242,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         if eval_done:
                             eval_obs = eval_env.reset()
                             eval_episode_rewards.append(eval_episode_reward)
-                            eval_episode_rewards_history.append(eval_episode_reward)
+                            #eval_episode_rewards_history.append(eval_episode_reward)
                             eval_episode_reward = 0.
                             eval_steps.append(t_rollout+1)
                             break  # the original baseline code didn't have this break statement, so would average multiple evaluation episodes
@@ -255,7 +255,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 #stats = agent.get_stats()
                 #combined_stats = stats.copy()
                 combined_stats = {}
-                combined_stats['train/epoch_episode_return_mean'] = np.mean(epoch_episode_rewards)
+                combined_stats['train/epoch_episode_reward_mean'] = np.mean(epoch_episode_rewards)
                 #combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
                 #combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
                 #combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
@@ -273,9 +273,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 combined_stats = {}
             # Evaluation statistics.
             if eval_env is not None:
-                combined_stats['eval/epoch_episode_return_mean'] = np.mean(eval_episode_rewards)
+                combined_stats['eval/epoch_episode_reward_mean'] = np.mean(eval_episode_rewards)
                 #combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
-                combined_stats['eval/epoch_episode_return_std'] = np.std(eval_episode_rewards)
+                combined_stats['eval/epoch_episode_reward_std'] = np.std(eval_episode_rewards)
                 combined_stats['eval/epoch_Q_mean'] = np.mean(eval_qs)
                 #combined_stats['eval/episodes'] = len(eval_episode_rewards)
                 combined_stats['eval/steps_mean'] = np.mean(eval_steps)
