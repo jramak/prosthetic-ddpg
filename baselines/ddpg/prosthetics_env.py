@@ -190,7 +190,7 @@ def knees_flexion_reward(observation_dict):
         reward = -2
     elif flexion > 0.1:
         reward = -1
-    return reward * 0.5
+    return reward
 
 def tibias_pos_reward(observation_dict):
     yindex = 1
