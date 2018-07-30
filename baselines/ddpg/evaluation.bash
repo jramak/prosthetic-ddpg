@@ -35,8 +35,6 @@ while true; do
             --model $model \
             --difficulty 0 \
             --reward-shaping \
-            --relative-x-pos \
-            --nb-eval-steps 1001 \
             --restore-model-name $model_name \
             --actor-layer-sizes $actor_layer_sizes \
             --critic-layer-sizes $critic_layer_sizes \
@@ -49,8 +47,6 @@ while true; do
                 --model 3D \
                 --difficulty 0 \
                 --reward-shaping \
-                --relative-x-pos \
-                --nb-eval-steps 1001 \
                 --restore-model-name $model_name \
                 --noise-type ou_0.2 \
                 --evaluation \
@@ -63,8 +59,6 @@ while true; do
                 --model 3D \
                 --difficulty 0 \
                 --reward-shaping \
-                --relative-x-pos \
-                --nb-eval-steps 1001 \
                 --restore-model-name $model_name \
                 --actor-layer-sizes [256,256] \
                 --critic-layer-sizes [256,256] \
