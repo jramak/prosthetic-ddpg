@@ -78,9 +78,12 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         relative_x_pos=kwargs['relative_x_pos'],
         relative_z_pos=kwargs['relative_z_pos'])
     train_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
-
-    if evaluation and rank==0:
+    if rank==0:
         train_env = bench.Monitor(train_env, None)
+    else:
+        train_env = bench.Monitor(train_env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
+
+    if evaluation:
         eval_env = prosthetics_env.EvaluationWrapper(osim_env.ProstheticsEnv(visualize=kwargs['render_eval']),
             frameskip=kwargs['eval_frameskip'],
             reward_shaping=kwargs['reward_shaping'],
@@ -91,7 +94,6 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
         eval_env.change_model(model=kwargs['model'].upper(), prosthetic=kwargs['prosthetic'], difficulty=kwargs['difficulty'], seed=seed)
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), 'gym_eval'))
     else:
-        train_env = bench.Monitor(train_env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
         eval_env = None
 
     # training.train() doesn't like the extra keyword args added for controlling the prosthetics env, so remove them.
@@ -144,7 +146,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     tf.reset_default_graph()
     set_global_seeds(seed)
     train_env.seed(seed)
-    if eval_env is not None:
+    if eval_env:
         eval_env.seed(seed)
 
     # Disable logging for rank != 0 to avoid noise.
@@ -153,7 +155,7 @@ def run(seed, noise_type, layer_norm, evaluation, **kwargs):
     training.train(env=train_env, eval_env=eval_env, param_noise=param_noise,
         action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
     train_env.close()
-    if eval_env is not None:
+    if eval_env:
         eval_env.close()
     if rank == 0:
         logger.info('total runtime: {}s'.format(time.time() - start_time))
@@ -179,10 +181,10 @@ def parse_args():
     parser.add_argument('--reward-scale', type=float, default=1.)
     parser.add_argument('--clip-norm', type=float, default=None)
     parser.add_argument('--nb-epochs', type=int, default=500)  # with default settings, perform 1M steps total
-    parser.add_argument('--nb-epoch-cycles', type=int, default=20)
+    parser.add_argument('--nb-epoch-cycles', type=int, default=5)
     parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
     parser.add_argument('--nb-eval-steps', type=int, default=1000)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
+    parser.add_argument('--nb-rollout-steps', type=int, default=1000)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
     parser.add_argument('--num-timesteps', type=int, default=None)
     boolean_flag(parser, 'evaluation', default=False)

@@ -24,8 +24,8 @@ import pathlib
 import resource
 
 NB_EVAL_EPOCHS=1
-NB_EVAL_EPOCH_CYCLES=3
-NB_EVAL_STEPS=1000
+NB_EVAL_EPOCH_CYCLES=0
+NB_EVAL_STEPS=1001
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
@@ -55,7 +55,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         restore_model_path = restore_model_name
         if not pathlib.Path(restore_model_path+'.index').is_file():
             restore_model_path = saved_model_dir + restore_model_name
-    max_to_keep = 100
+    max_to_keep = 500
+    eval_reward_threshold_to_keep = 300
     saver = tf.train.Saver(max_to_keep=max_to_keep)
     adam_optimizer_store = dict()
     adam_optimizer_store['actor_optimizer'] = dict()
@@ -106,8 +107,6 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             print("Unable to restore adam state from {:s}.".format(restore_model_path))
 
         obs = env.reset()
-        if eval_env is not None:
-            eval_obs = eval_env.reset()
         done = False
         episode_reward = 0.
         #episode_step = 0
@@ -129,6 +128,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             eval_steps = []
             epoch_actor_losses = []
             epoch_critic_losses = []
+            worth_keeping = False
             for cycle in range(nb_epoch_cycles):
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
@@ -140,7 +140,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     if rank == 0 and render:
                         env.render()
                     assert max_action.shape == action.shape
-                    new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                    #new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                    new_obs, r, done, info = env.step(action)
                     #t += 1
                     if rank == 0 and render:
                         env.render()
@@ -226,24 +227,10 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     crowdai_client.submit()
                     return  # kids, don't try any of these (expedient hacks) at home!
 
-                # Evaluate.
-                if eval_env is not None:
-                    eval_episode_reward = 0.
-                    for t_rollout in range(nb_eval_steps):
-                        eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
-                        eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                        if render_eval:
-                            eval_env.render()
-                        eval_episode_reward += eval_r
-
-                        eval_qs.append(eval_q)
-                        if eval_done:
-                            eval_obs = eval_env.reset()
-                            eval_episode_rewards.append(eval_episode_reward)
-                            #eval_episode_rewards_history.append(eval_episode_reward)
-                            eval_episode_reward = 0.
-                            eval_steps.append(t_rollout+1)
-                            break  # the original baseline code didn't have this break statement, so would average multiple evaluation episodes
+            if eval_env:
+                eval_episode_reward_mean, eval_q_mean, eval_step_mean = evaluate_n_episodes(3, eval_env, agent, nb_eval_steps, render_eval)
+                if eval_episode_reward_mean >= eval_reward_threshold_to_keep:
+                    worth_keeping = True
 
             mpi_size = MPI.COMM_WORLD.Get_size()
             # Log stats.
@@ -266,17 +253,17 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 #combined_stats['total/episodes'] = episodes
                 #combined_stats['rollout/episodes'] = epoch_episodes
                 #combined_stats['rollout/actions_std'] = np.std(epoch_actions)
-                combined_stats['memory/rss'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                #combined_stats['memory/rss'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
             else:
                 combined_stats = {}
             # Evaluation statistics.
-            if eval_env is not None:
-                combined_stats['eval/epoch_episode_reward_mean'] = np.mean(eval_episode_rewards)
+            if eval_env:
+                combined_stats['eval/epoch_episode_reward_mean'] = eval_episode_reward_mean # np.mean(eval_episode_rewards)
                 #combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
-                combined_stats['eval/epoch_episode_reward_std'] = np.std(eval_episode_rewards)
-                combined_stats['eval/epoch_Q_mean'] = np.mean(eval_qs)
+                #combined_stats['eval/epoch_episode_reward_std'] = np.std(eval_episode_rewards)
+                combined_stats['eval/epoch_Q_mean'] = eval_q_mean # np.mean(eval_qs)
                 #combined_stats['eval/episodes'] = len(eval_episode_rewards)
-                combined_stats['eval/steps_mean'] = np.mean(eval_steps)
+                combined_stats['eval/steps_mean'] = eval_step_mean # np.mean(eval_steps)
             def as_scalar(x):
                 if isinstance(x, np.ndarray):
                     assert x.size == 1
@@ -294,11 +281,12 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
             for key in sorted(combined_stats.keys()):
                 logger.record_tabular(key, combined_stats[key])
-            logger.dump_tabular()
             logger.info('')
+            logger.info('Epoch', epoch)
+            logger.dump_tabular()
             logdir = logger.get_dir()
 
-            if (rank == 0) and nb_epochs and nb_epoch_cycles and nb_train_steps > 0 and nb_rollout_steps > 0:
+            if worth_keeping and rank == 0 and nb_epochs and nb_epoch_cycles and nb_train_steps and nb_rollout_steps:
                 logger.info('Saving model to', saved_model_dir + saved_model_basename + '-' + str(epoch))
                 saver.save(sess, saved_model_path, global_step=epoch, write_meta_graph=False)
                 adam_optimizer_store['actor_optimizer']['m'] = agent.actor_optimizer.m
@@ -329,3 +317,35 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 if eval_env and hasattr(eval_env, 'get_state'):
                     with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
                         pickle.dump(eval_env.get_state(), f)
+
+def evaluate_n_episodes(n, eval_env, agent, nb_eval_steps, render):
+    results = []
+    for i in range(n):
+        results.append(evaluate_one_episode(eval_env, agent, nb_eval_steps, render))
+    rewards = [r[0] for r in results]
+    q_means = [r[1] for r in results]
+    steps   = [r[2] for r in results]
+    return np.mean(rewards), np.average(q_means, weights=steps), np.mean(steps)
+
+
+def evaluate_one_episode(env, agent, nb_eval_steps, render):
+    if nb_eval_steps <= 0:
+        logger.error('evaluate_one_episode nb_eval_steps must be > 0')
+    reward = 0.
+    qs = []
+    obs = env.reset()
+    for step in range(nb_eval_steps):
+        action, q = agent.pi(obs, apply_noise=False, compute_Q=True)
+        obs, r, done, info = env.step(action)
+        if render:
+            env.render()
+        reward += r
+        qs.append(q)
+        if done:
+            #obs = env.reset()
+            break  # the original baseline code didn't have this break statement, so would average multiple evaluation episodes
+        elif step >= nb_eval_steps:
+            logger.warn('evaluate_one_episode step', step, 'exceeded nb_eval_steps', nb_eval_steps, 'but done is False')
+            #obs = env.reset()
+            break
+    return reward, np.mean(qs), step+1
