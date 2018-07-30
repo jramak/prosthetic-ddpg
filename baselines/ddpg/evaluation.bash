@@ -92,6 +92,7 @@ while true; do
             rm saved-models/${model_name}.*
         else
             echo "  This one is puzzling. Taking no action."
+            echo "$out"
         fi
     done
     sleep 10
