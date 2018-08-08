@@ -118,7 +118,7 @@ def main():
                                 observation_shape=env.observation_space.shape)
                 critic = Critic(layer_norm=True, activation='relu', layer_sizes=[l_size, l_size])
                 actor = Actor(env.action_space.shape[-1], layer_norm=True,
-                              activation='relu', layer_sizes=[256, 256])
+                              activation='relu', layer_sizes=[l_size, l_size])
                 agent = DDPG(actor, critic, memory, env.observation_space.shape,
                              env.action_space.shape, gamma=gamma, tau=tau,
                              normalize_returns=normalize_returns,
