@@ -274,6 +274,16 @@ class DDPG(object):
         action = np.clip(action, self.action_range[0], self.action_range[1])
         return action, q
 
+    def compute_Q_for_action(self, obs, action):
+        my_normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms),
+                                              self.observation_range[0],
+                                              self.observation_range[1])
+        my_normalized_critic_with_actor_tf = self.critic(my_normalized_obs0, self.actions, reuse=True)
+        my_critic_with_actions_tf = denormalize(tf.clip_by_value(my_normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
+        feed_dict = {self.obs0: [obs], self.actions: [action]}
+        q = self.sess.run([my_critic_with_actions_tf], feed_dict=feed_dict)
+        return q
+
     def store_transition(self, obs0, action, reward, obs1, terminal1):
         reward *= self.reward_scale
         self.memory.append(obs0, action, reward, obs1, terminal1)
