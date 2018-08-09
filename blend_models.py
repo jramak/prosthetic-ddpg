@@ -209,6 +209,9 @@ def main():
         #                                                    nb_eval_steps=nb_eval_steps,
         #                                                    render=False)
         reward, mean_q, final_steps = evaluate_one_episode(eval_env, agent, nb_eval_steps, render=False)
+        print("Reward: " + str(reward))
+        print("Mean Q: " + str(mean_q))
+        print("Final num steps: " + str(final_steps))
 
     # Submit to crowdai competition. What a hack. :)
     # if crowdai_client is not None and crowdai_token is not None and eval_env is not None:
@@ -260,10 +263,6 @@ def main():
 
     for i in range(len(sess_list)):
         sess_list[i].close()
-
-    print("Reward: " + str(reward))
-    print("Mean Q: " + str(mean_q))
-    print("Final num steps: " + str(final_steps))
 
 
 if __name__ == "__main__":
