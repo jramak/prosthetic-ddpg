@@ -69,9 +69,10 @@ def torso_xaxis_lean(observation_dict):
     body_pos = observation_dict["body_pos"]
     head = body_pos["head"]
     pelvis = body_pos["pelvis"]
-    #return (head[xaxis] - pelvis[xaxis]) / (head[yaxis] - pelvis[yaxis])
+    # We have NOT already normalized -- it is normalized only after feature embellishment.
+    return (head[xaxis] - pelvis[xaxis]) / (head[yaxis] - pelvis[yaxis])
     # We've already normalized all the body_pos xaxis values wrt the pelvis.
-    return head[xaxis] / (head[yaxis] - pelvis[yaxis])
+    #return head[xaxis] / (head[yaxis] - pelvis[yaxis])
 
 # Only generate negative rewards for undesired states so that "successful"
 # observations reflect actual rewards.
@@ -126,11 +127,12 @@ def femurs_xaxis_lean(observation_dict):
     # Yes, use the tibias here. They're at the *bases* of the femurs.
     femur_l, femur_r = body_pos["tibia_l"], body_pos["pros_tibia_r"]
     return [
-        #(pelvis[xindex] - femur_l[xindex]) / (pelvis[yindex] - femur_l[yindex]),
-        #(pelvis[xindex] - femur_r[xindex]) / (pelvis[yindex] - femur_r[yindex])
+        # We have NOT already normalized -- it is normalized only after feature embellishment.
+        (pelvis[xindex] - femur_l[xindex]) / (pelvis[yindex] - femur_l[yindex]),
+        (pelvis[xindex] - femur_r[xindex]) / (pelvis[yindex] - femur_r[yindex])
         # We've already normalized all the body_pos xaxis values wrt the pelvis.
-        -femur_l[xindex] / (pelvis[yindex] - femur_l[yindex]),
-        -femur_r[xindex] / (pelvis[yindex] - femur_r[yindex])
+        #-femur_l[xindex] / (pelvis[yindex] - femur_l[yindex]),
+        #-femur_r[xindex] / (pelvis[yindex] - femur_r[yindex])
     ]
 
 def femurs_zaxis_lean(observation_dict):
