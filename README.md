@@ -1,3 +1,7 @@
+Contributors: Mark Paine, Jagdish Ramakrishnan
+
+Code we used for the crowdAI, NIPS 2018 AI for Prosthetics Challenge. We trained the agent using OpenAI’s Deep Deterministic Policy Gradient (DDPG) baselines implementation. Our best performing submission (~1260 reward) used a SELU activation function and feature embellishment (e.g., torso and legs lean, knee flexion).
+
 ## Installation
 
 Install Miniconda or Anaconda and set up your conda environment by following these intructions: http://osim-rl.stanford.edu/docs/quickstart/
